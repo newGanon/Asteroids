@@ -17,12 +17,10 @@ HINSTANCE hInst;
 LRESULT CALLBACK WndProc(_In_ HWND, _In_ UINT, _In_ WPARAM, _In_ LPARAM);
 
 // Game specific variables
-Render_Buffer render_buffer;
-bool running = true;
-Player player;
-
-bool draw = 0;
-ivec2 pos = { 0 };
+static Render_Buffer render_buffer;
+static bool running = true;
+static Player player;
+static u64 last_time;
 
 
 // Windows specific variables
@@ -43,7 +41,6 @@ u64 time_since(u64 last_time) {
     return now - last_time;
 }
 
-
 void init_render_buffer(HWND hWnd) {
     RECT rect;
     GetClientRect(hWnd, &rect);
@@ -61,6 +58,18 @@ void init_render_buffer(HWND hWnd) {
     win32_bitmap_info.bmiHeader.biPlanes = 1;
     win32_bitmap_info.bmiHeader.biBitCount = 32;
     win32_bitmap_info.bmiHeader.biCompression = BI_RGB;
+}
+
+
+void tick() {
+    u64 delta_time = time_since(last_time);
+    last_time += delta_time;
+    update_player(&player, delta_time);
+}
+
+void render() {
+    clear_screen(render_buffer, 0);
+    draw_player(render_buffer, player);
 }
 
 /// <summary>
@@ -140,12 +149,12 @@ int WINAPI wWinMain(
     srand(time(NULL));
 
     // Timing
-    i64 last_time = get_milliseconds();
+    last_time = get_milliseconds();
 
     // Game
-    player.pos = (vec2){ 0.5f, 0.5f };
-    player.speed = 0.5f;
-    player.velocity = 0;
+    player.pos = (vec2){ 1.77f / 2, 0.5f };
+    player.acceleration = 0.5f;
+    player.velocity = (vec2){ 0 };
     player.ang = 0;
 
     Input input = { 0 };
@@ -154,7 +163,7 @@ int WINAPI wWinMain(
     while (running) {
         //input
         MSG msg;
-        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) 
+        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) 
         {
             switch (msg.message) {
                 case WM_KEYUP:
@@ -171,13 +180,9 @@ int WINAPI wWinMain(
                     break;
                 }
                 case WM_LBUTTONDOWN: {
-                    draw = true;
-                    pos.x = GET_X_LPARAM(msg.lParam);
-                    pos.y = render_buffer.height - 1 - GET_Y_LPARAM(msg.lParam);
                     break;
                 }
                 case WM_LBUTTONUP: {
-                    draw = false;
                     break;
                 }
                 default: {
@@ -186,54 +191,57 @@ int WINAPI wWinMain(
                 }
             }
         }
-        //simulation
-        i64 delta_time = time_since(last_time);
-        last_time += delta_time;
 
         player.input = input;
-        update_player(&player, delta_time);
-        
-        //render
-        clear_screen(render_buffer, 0);
-        draw_player(render_buffer, player);
 
+
+
+        // Simulation 
+        tick();
+        // Rendering
+        render();
         InvalidateRect(hWnd, NULL, FALSE);
-        HDC hdc = GetDC(hWnd);
     }
     return 0;
 }
 
-LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, _In_ LPARAM lParam) {
-   switch (message)
-   {
-       case WM_SIZE:
-           if (!(SIZE_MAXIMIZED)) return 0;
+
+LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM w_param, _In_ LPARAM l_param) {
+    switch (message)
+    {
+        case WM_SIZE: {
+            if (w_param == SIZE_MAXIMIZED) init_render_buffer(hWnd);
+            break;
+        }
        case WM_EXITSIZEMOVE: {
            init_render_buffer(hWnd);
+           KillTimer(hWnd, 0);
            break;
        }
-       
+       case WM_ENTERSIZEMOVE: {
+           SetTimer(hWnd, 0, 1, NULL);
+           break;
+       }
+       case WM_TIMER:
+           tick();
+           render();
+           InvalidateRect(hWnd, NULL, TRUE);
+           break;
+                           
        case WM_PAINT: {
            PAINTSTRUCT ps;
-           HDC hdc = BeginPaint(hWnd, &ps);
-
-           StretchDIBits(
-               hdc,
-               0, 0,
-               render_buffer.width,
-               render_buffer.height,
-               0, 0,
-               render_buffer.width,
-               render_buffer.height,
-               render_buffer.pixels,
-               &win32_bitmap_info,
-               DIB_RGB_COLORS,
-               SRCCOPY
-           );
+           HDC hdc = BeginPaint(hWnd, &ps); 
+           StretchDIBits(hdc, 0, 0, 
+               render_buffer.width, render_buffer.height, 0, 0, 
+               render_buffer.width, render_buffer.height, 
+               render_buffer.pixels, &win32_bitmap_info, 
+               DIB_RGB_COLORS, SRCCOPY);
 
            EndPaint(hWnd, &ps);
            break; 
        }
+       case WM_ERASEBKGND:
+           return 1;
        case WM_DESTROY:
        case WM_CLOSE: {
            PostQuitMessage(0);
@@ -241,7 +249,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
            break;
        }
        default:
-          return DefWindowProc(hWnd, message, wParam, lParam);
+          return DefWindowProc(hWnd, message, w_param, l_param);
           break;
    }
 

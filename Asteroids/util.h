@@ -33,4 +33,3 @@ typedef struct vec2_s {
 typedef struct ivec2_s {
 	i32 x, y;
 }ivec2;
-

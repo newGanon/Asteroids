@@ -13,8 +13,8 @@ typedef struct Input_s {
 
 typedef struct Player_s {
 	vec2 pos;
-	f32 velocity;
-	f32 speed;
+	vec2 velocity;
+	f32 acceleration;
 	f32 ang;
 
 	Input input;
