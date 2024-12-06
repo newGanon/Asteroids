@@ -1,13 +1,6 @@
 #pragma once
 #include "util.h"
 
-typedef struct Player_s {
-	vec2 pos;
-	f32 velocity;
-	f32 speed;
-	f32 ang;
-} Player;
-
 typedef struct Input_s {
 	vec2 mouse_pos;
 	vec2 mouse_move;
@@ -18,4 +11,13 @@ typedef struct Input_s {
 	bool shoot;
 }Input;
 
-void update_player(Player* player, Input input, u64 delta_time);
+typedef struct Player_s {
+	vec2 pos;
+	f32 velocity;
+	f32 speed;
+	f32 ang;
+
+	Input input;
+} Player;
+
+void update_player(Player* player, u64 delta_time);

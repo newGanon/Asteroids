@@ -1,6 +1,5 @@
 #include <windows.h>
 #include <windowsx.h>
-#include <stdlib.h>
 #include <string.h>
 #include <tchar.h>
 
@@ -137,12 +136,15 @@ int WINAPI wWinMain(
     // Init Render Buffer
     init_render_buffer(hWnd);
 
+    // Random numbers
+    srand(time(NULL));
+
     // Timing
     i64 last_time = get_milliseconds();
 
     // Game
-    player.pos = (vec2){ render_buffer.width / 2, render_buffer.height / 2 };
-    player.speed = 10;
+    player.pos = (vec2){ 0.5f, 0.5f };
+    player.speed = 0.5f;
     player.velocity = 0;
     player.ang = 0;
 
@@ -188,13 +190,15 @@ int WINAPI wWinMain(
         i64 delta_time = time_since(last_time);
         last_time += delta_time;
 
-        update_player(&player, input, delta_time);
+        player.input = input;
+        update_player(&player, delta_time);
         
         //render
         clear_screen(render_buffer, 0);
         draw_player(render_buffer, player);
 
         InvalidateRect(hWnd, NULL, FALSE);
+        HDC hdc = GetDC(hWnd);
     }
     return 0;
 }
@@ -202,11 +206,13 @@ int WINAPI wWinMain(
 LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, _In_ LPARAM lParam) {
    switch (message)
    {
+       case WM_SIZE:
+           if (!(SIZE_MAXIMIZED)) return 0;
        case WM_EXITSIZEMOVE: {
            init_render_buffer(hWnd);
            break;
        }
-
+       
        case WM_PAINT: {
            PAINTSTRUCT ps;
            HDC hdc = BeginPaint(hWnd, &ps);
