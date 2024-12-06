@@ -18,7 +18,13 @@
     <ClCompile Include="main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="graphics.c">
+    <ClCompile Include="graphic.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="player.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="math.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,7 +32,13 @@
     <ClInclude Include="util.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="graphics.h">
+    <ClInclude Include="graphic.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="player.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="math.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

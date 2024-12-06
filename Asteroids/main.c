@@ -1,10 +1,12 @@
 #include <windows.h>
+#include <windowsx.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tchar.h>
 
 #include "util.h"
-#include "graphics.h"
+#include "graphic.h"
+#include "player.h"
 
 
 TCHAR sz_window_class[] = _T("DesktopApp");
@@ -18,9 +20,49 @@ LRESULT CALLBACK WndProc(_In_ HWND, _In_ UINT, _In_ WPARAM, _In_ LPARAM);
 // Game specific variables
 Render_Buffer render_buffer;
 bool running = true;
+Player player;
+
+bool draw = 0;
+ivec2 pos = { 0 };
+
 
 // Windows specific variables
 BITMAPINFO win32_bitmap_info;
+
+
+
+u64 get_milliseconds() {
+    LARGE_INTEGER freq;
+    QueryPerformanceFrequency(&freq);
+    LARGE_INTEGER counter_now;
+    QueryPerformanceCounter(&counter_now);
+    return (1000LL * counter_now.QuadPart) / freq.QuadPart;
+}
+
+u64 time_since(u64 last_time) {
+    u64 now = get_milliseconds();
+    return now - last_time;
+}
+
+
+void init_render_buffer(HWND hWnd) {
+    RECT rect;
+    GetClientRect(hWnd, &rect);
+    render_buffer.width = rect.right - rect.left;
+    render_buffer.height = rect.bottom - rect.top;
+
+    if (render_buffer.pixels) {
+        VirtualFree(render_buffer.pixels, NULL, MEM_RELEASE);
+    }
+    render_buffer.pixels = (u32*)VirtualAlloc(NULL, render_buffer.width * render_buffer.height * sizeof(u32), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+    win32_bitmap_info.bmiHeader.biSize = sizeof(win32_bitmap_info.bmiHeader);
+    win32_bitmap_info.bmiHeader.biWidth = render_buffer.width;
+    win32_bitmap_info.bmiHeader.biHeight = render_buffer.height;
+    win32_bitmap_info.bmiHeader.biPlanes = 1;
+    win32_bitmap_info.bmiHeader.biBitCount = 32;
+    win32_bitmap_info.bmiHeader.biCompression = BI_RGB;
+}
 
 /// <summary>
 /// Windows program entry point
@@ -92,75 +134,109 @@ int WINAPI wWinMain(
     ShowWindow(hWnd, nShowCmd);
     UpdateWindow(hWnd);
 
-    HDC hdc = GetDC(hWnd);
+    // Init Render Buffer
+    init_render_buffer(hWnd);
 
+    // Timing
+    i64 last_time = get_milliseconds();
+
+    // Game
+    player.pos = (vec2){ render_buffer.width / 2, render_buffer.height / 2 };
+    player.speed = 10;
+    player.velocity = 0;
+    player.ang = 0;
+
+    Input input = { 0 };
+    
     // Main message loop
     while (running) {
         //input
         MSG msg;
-        if (PeekMessage(&msg, hWnd, 0, 0, PM_REMOVE)) 
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) 
         {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+            switch (msg.message) {
+                case WM_KEYUP:
+                case WM_KEYDOWN: {
+                    bool was_down = (msg.lParam >> 30) & 1;
+                    bool is_down = ((msg.lParam >> 31) & 1) == 0;
+
+                    switch (msg.wParam) {
+                        case VK_LEFT: input.turn_left = is_down; break;
+                        case VK_RIGHT: input.turn_right = is_down; break;
+                        case VK_UP: input.accelerate = is_down; break;
+                        case VK_SPACE: if (!was_down) input.shoot = is_down; break;
+                    }
+                    break;
+                }
+                case WM_LBUTTONDOWN: {
+                    draw = true;
+                    pos.x = GET_X_LPARAM(msg.lParam);
+                    pos.y = render_buffer.height - 1 - GET_Y_LPARAM(msg.lParam);
+                    break;
+                }
+                case WM_LBUTTONUP: {
+                    draw = false;
+                    break;
+                }
+                default: {
+                    TranslateMessage(&msg);
+                    DispatchMessage(&msg);
+                }
+            }
         }
         //simulation
+        i64 delta_time = time_since(last_time);
+        last_time += delta_time;
+
+        update_player(&player, input, delta_time);
         
+        //render
+        clear_screen(render_buffer, 0);
+        draw_player(render_buffer, player);
+
+        InvalidateRect(hWnd, NULL, FALSE);
     }
+    return 0;
 }
 
 LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, _In_ LPARAM lParam) {
    switch (message)
    {
-   case WM_SIZE: {
-       RECT rect;
-       GetWindowRect(hWnd, &rect);
-       render_buffer.width = rect.right - rect.left;
-       render_buffer.height = rect.bottom - rect.top;
-
-       if (render_buffer.pixels) {
-           VirtualFree(render_buffer.pixels, NULL, MEM_RELEASE);
+       case WM_EXITSIZEMOVE: {
+           init_render_buffer(hWnd);
+           break;
        }
-       render_buffer.pixels = (u32*)VirtualAlloc(NULL, render_buffer.width * render_buffer.height * sizeof(u32), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
-       win32_bitmap_info.bmiHeader.biSize = sizeof(win32_bitmap_info.bmiHeader);
-       win32_bitmap_info.bmiHeader.biWidth = render_buffer.width;
-       win32_bitmap_info.bmiHeader.biHeight = render_buffer.height;
-       win32_bitmap_info.bmiHeader.biPlanes = 1;
-       win32_bitmap_info.bmiHeader.biBitCount = 32;
-       win32_bitmap_info.bmiHeader.biCompression = BI_RGB;
-       break;
-   }
-   //render
-   case WM_PAINT: {
-       PAINTSTRUCT ps;
-       HDC hdc = BeginPaint(hWnd, &ps);
+       case WM_PAINT: {
+           PAINTSTRUCT ps;
+           HDC hdc = BeginPaint(hWnd, &ps);
 
-       clear_screen(&render_buffer, 255);
+           StretchDIBits(
+               hdc,
+               0, 0,
+               render_buffer.width,
+               render_buffer.height,
+               0, 0,
+               render_buffer.width,
+               render_buffer.height,
+               render_buffer.pixels,
+               &win32_bitmap_info,
+               DIB_RGB_COLORS,
+               SRCCOPY
+           );
 
-       StretchDIBits(
-           hdc,
-           0, 0,
-           render_buffer.width,
-           render_buffer.height,
-           0, 0,
-           render_buffer.width,
-           render_buffer.height,
-           render_buffer.pixels,
-           &win32_bitmap_info,
-           DIB_RGB_COLORS,
-           SRCCOPY
-       );
-
-       EndPaint(hWnd, &ps);
-       break; 
-   }
-   case WM_DESTROY: {
-       running = false;
-       break;
-   }
-   default:
-      return DefWindowProc(hWnd, message, wParam, lParam);
-      break;
+           EndPaint(hWnd, &ps);
+           break; 
+       }
+       case WM_DESTROY:
+       case WM_CLOSE: {
+           PostQuitMessage(0);
+           running = false;
+           break;
+       }
+       default:
+          return DefWindowProc(hWnd, message, wParam, lParam);
+          break;
    }
 
    return 0;

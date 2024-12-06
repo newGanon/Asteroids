@@ -135,11 +135,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="graphics.c" />
+    <ClCompile Include="graphic.c" />
     <ClCompile Include="main.c" />
+    <ClCompile Include="math.c" />
+    <ClCompile Include="player.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="graphics.h" />
+    <ClInclude Include="graphic.h" />
+    <ClInclude Include="math.h" />
+    <ClInclude Include="player.h" />
     <ClInclude Include="util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
