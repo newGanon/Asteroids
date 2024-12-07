@@ -52,11 +52,10 @@ void draw_player(Render_Buffer rb, Player player) {
     draw_mesh(rb, player.mesh, player.pos, player.ang);
 
     if (player.input.accelerate) {
-        f32 size = 0.4;
         i32 r = random_between(7, 9);
-        ivec2 p5 = pos_to_screen_relative_rotate( (vec2) { -0.04f * size,  0.03f * size }, player.pos, player.ang, rb.height, rb.width);
-        ivec2 p6 = pos_to_screen_relative_rotate( (vec2) { -0.04f * size, -0.03f * size }, player.pos, player.ang, rb.height, rb.width);
-        ivec2 p7 = pos_to_screen_relative_rotate( (vec2) { -(r * 0.01f) * size, 0 * size }, player.pos, player.ang, rb.height, rb.width);
+        ivec2 p5 = pos_to_screen_relative_rotate( (vec2) { -4.0f * player.size, 3.0f * player.size }, player.pos, player.ang, rb.height, rb.width);
+        ivec2 p6 = pos_to_screen_relative_rotate( (vec2) { -4.0f * player.size, -3.0f * player.size }, player.pos, player.ang, rb.height, rb.width);
+        ivec2 p7 = pos_to_screen_relative_rotate( (vec2) { -r * player.size, 0 * player.size }, player.pos, player.ang, rb.height, rb.width);
 
         draw_line(rb, p5, p7, 0x00FFFFFF);
         draw_line(rb, p6, p7, 0x00FFFFFF);

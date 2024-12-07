@@ -17,10 +17,13 @@ typedef struct Player_s {
 	vec2 velocity;
 	f32 acceleration;
 	f32 ang;
+	f32 size;
+	bool dead;
 
 	Input input;
 	WireframeMesh mesh;
 } Player;
 
 void update_player(Player* player, u64 delta_time, EntityManager* manager);
-void player_collisions(Player* player);
+void player_collisions(Player* player, EntityManager* manager);
+WireframeMesh create_player_mesh(f32 size);

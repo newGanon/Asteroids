@@ -30,11 +30,32 @@ void update_player(Player* player, u64 delta_time, EntityManager* manager) {
 
 	if (player->input.shoot) {
 		vec2 angle_vec2 = vec2_from_ang(player->ang, 1.0f);
-		add_entity(manager, create_bullet(vec2_add(player->pos, vec2_scale(angle_vec2, 0.04f)), vec2_scale(angle_vec2, 0.8f), 0.003f));
+		add_entity(manager, create_bullet(vec2_add(player->pos, vec2_scale(angle_vec2, 8.0 * player->size)), vec2_scale(angle_vec2, 0.8f), 0.003f));
 		player->input.shoot = false;
 	}
 }
 
-void player_collisions(Player* player) {
 
+WireframeMesh create_player_mesh(f32 size) {
+	WireframeMesh m;
+	m.point_amt = 4;
+	m.points = (vec2*)malloc(m.point_amt * sizeof(vec2));
+	m.points[0] = (vec2){ -5.0f * size, 5.0f * size };
+	m.points[1] = (vec2){ 8.0f * size, 0 * size };
+	m.points[2] = (vec2){ -5.0f * size, -5.0f * size };
+	m.points[3] = (vec2){ -2.0f * size, 0 * size };
+	return m;
+}
+
+
+void player_collisions(Player* player, EntityManager* manager) {
+	for (i32 i = manager->entity_amt-1; i >= 0; i--) {
+		Entity e = manager->entities[i];
+		if(has_hitbox(e.type) && e.type != BULLET) {
+			if (circle_intersect(player->pos, player->size * 6.0f, e.pos, e.size)) {
+				player->dead = true;
+				spawn_explosion(manager, player->pos, 100);
+			}
+		}
+	}
 }

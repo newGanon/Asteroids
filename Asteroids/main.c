@@ -69,22 +69,27 @@ void tick() {
     if (delta_time >= 500) delta_time = 500;
     // spawn asteroid every 5 seconds
     last_asteroid_spawn += delta_time;
-    if(last_asteroid_spawn > 500) {
+    if(last_asteroid_spawn > 1000) {
         spawn_asteroid(&entity_man);
         last_asteroid_spawn = 0;
     }
+    
+    // player tick
+    if (!player.dead) {
+        update_player(&player, delta_time, &entity_man);
+        player_collisions(&player, &entity_man);
+    }
 
-    // update position
-    update_player(&player, delta_time, &entity_man);
+    // entity tick
     update_entities(&entity_man, delta_time);
-    // handle collsions
-    player_collisions(&player);
     entity_collisions(&entity_man);
 }
 
 void render() {
     clear_screen(render_buffer, 0);
-    draw_player(render_buffer, player);
+    if (!player.dead) {
+        draw_player(render_buffer, player);
+    }
     draw_entities(render_buffer, entity_man);
 }
 
@@ -172,7 +177,9 @@ int WINAPI wWinMain(
     player.acceleration = 0.5f;
     player.velocity = (vec2){ 0 };
     player.ang = 0;
-    player.mesh = create_player_mesh(0.4f);
+    player.size = 0.004f;
+    player.dead = false;
+    player.mesh = create_player_mesh(player.size);
 
     last_asteroid_spawn = 0;
 
