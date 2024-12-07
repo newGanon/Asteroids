@@ -8,9 +8,18 @@ ivec2 vec2_to_ivec2(vec2 v);
 
 vec2 ivec2_to_vec2(ivec2 v);
 
-vec2 pos_to_screen(vec2 p, i32 s_height, i32 s_width);
+ivec2 pos_to_screen(vec2 p, i32 s_height, i32 s_width);
+ivec2 pos_to_screen_relative_rotate(vec2 point, vec2 relative_to, f32 angle, i32 screen_height, i32 screen_width);
+
 vec2 vec2_rotate(vec2 v, f32 ang);
+
+bool point_outside_rect(vec2 p, vec2 v0, vec2 v1);
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
-#define CLAMP(x, upper, lower) (MIN(upper, MAX(x, lower)))
+
+#define CLAMP(x, lower, upper) (MIN(upper, MAX(x, lower)))
+#define CLAMP_MIN(x, lower) (MAX(x, lower))
+#define CLAMP_MAX(x, upper) (MIN(x, upper))
+
+#define SIGN(x) ( (x) < 0 ? 0 : 1 )

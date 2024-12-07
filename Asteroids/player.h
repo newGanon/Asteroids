@@ -1,5 +1,6 @@
 #pragma once
 #include "util.h"
+#include "entity.h"
 
 typedef struct Input_s {
 	vec2 mouse_pos;
@@ -18,6 +19,7 @@ typedef struct Player_s {
 	f32 ang;
 
 	Input input;
+	WireframeMesh mesh;
 } Player;
 
-void update_player(Player* player, u64 delta_time);
+void update_player(Player* player, u64 delta_time, EntityManager* manager);

@@ -6,6 +6,7 @@
 #include "util.h"
 #include "graphic.h"
 #include "player.h"
+#include "entity.h"
 
 
 TCHAR sz_window_class[] = _T("DesktopApp");
@@ -20,6 +21,8 @@ LRESULT CALLBACK WndProc(_In_ HWND, _In_ UINT, _In_ WPARAM, _In_ LPARAM);
 static Render_Buffer render_buffer;
 static bool running = true;
 static Player player;
+static EntityManager entity_man;
+
 static u64 last_time;
 
 
@@ -60,16 +63,18 @@ void init_render_buffer(HWND hWnd) {
     win32_bitmap_info.bmiHeader.biCompression = BI_RGB;
 }
 
-
 void tick() {
     u64 delta_time = time_since(last_time);
     last_time += delta_time;
-    update_player(&player, delta_time);
+    if (delta_time >= 500) delta_time = 500;
+    update_player(&player, delta_time, &entity_man);
+    update_entities(&entity_man, delta_time);
 }
 
 void render() {
     clear_screen(render_buffer, 0);
     draw_player(render_buffer, player);
+    draw_entities(render_buffer, entity_man);
 }
 
 /// <summary>
@@ -156,14 +161,39 @@ int WINAPI wWinMain(
     player.acceleration = 0.5f;
     player.velocity = (vec2){ 0 };
     player.ang = 0;
+    player.mesh.points = (vec2*)malloc(4 * sizeof(vec2));
 
-    Input input = { 0 };
+    f32 player_size = 0.4f;
+    player.mesh.points[0] = (vec2){ -0.05f * player_size, 0.05f * player_size };
+    player.mesh.points[1] = (vec2){ 0.1f   * player_size, 0 * player_size };
+    player.mesh.points[2] = (vec2){ -0.05f * player_size, -0.05f * player_size };
+    player.mesh.points[3] = (vec2){ -0.02f * player_size, 0      * player_size };
+    player.mesh.point_amt = 4;
+    
+    Entity e = {
+        .pos = (vec2){0.2f, 0.5f},
+        .vel = (vec2){0.1f, 0.0f},
+        .type = ASTEROID,
+        .mesh.points = (vec2*)malloc(4 * sizeof(vec2)),
+        .mesh.point_amt = 4,
+    };
+    e.mesh.points[0] = (vec2){ -0.1, -0.1 };
+    e.mesh.points[1] = (vec2){ -0.1,  0.1 };
+    e.mesh.points[2] = (vec2){  0.1,  0.1 };
+    e.mesh.points[3] = (vec2){  0.1, -0.1 };
+
+    //TODO make memory allocation for entities dynamic
+    entity_man.entities = (Entity*)malloc(100 * sizeof(Entity));
+    add_entity(&entity_man, e);
+
+
     
     // Main message loop
     while (running) {
         //input
         MSG msg;
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) 
+
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) 
         {
             switch (msg.message) {
                 case WM_KEYUP:
@@ -172,10 +202,14 @@ int WINAPI wWinMain(
                     bool is_down = ((msg.lParam >> 31) & 1) == 0;
 
                     switch (msg.wParam) {
-                        case VK_LEFT: input.turn_left = is_down; break;
-                        case VK_RIGHT: input.turn_right = is_down; break;
-                        case VK_UP: input.accelerate = is_down; break;
-                        case VK_SPACE: if (!was_down) input.shoot = is_down; break;
+                        case VK_LEFT: player.input.turn_left = is_down; break;
+                        case VK_RIGHT: player.input.turn_right = is_down; break;
+                        case VK_UP: player.input.accelerate = is_down; break;
+                        case VK_SPACE: 
+                            if (!was_down && is_down) {
+                                player.input.shoot = true;
+                                break;
+                            }
                     }
                     break;
                 }
@@ -192,13 +226,10 @@ int WINAPI wWinMain(
             }
         }
 
-        player.input = input;
-
-
-
-        // Simulation 
+        // Simulate
         tick();
-        // Rendering
+
+        // Render
         render();
         InvalidateRect(hWnd, NULL, FALSE);
     }
@@ -207,51 +238,43 @@ int WINAPI wWinMain(
 
 
 LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM w_param, _In_ LPARAM l_param) {
+
+    //wchar_t text_buffer[20] = { 0 }; //temporary buffer
+    //swprintf(text_buffer, _countof(text_buffer), L"%d", message); // convert
+    //OutputDebugString(text_buffer); // print
+
     switch (message)
     {
-        case WM_SIZE: {
-            if (w_param == SIZE_MAXIMIZED) init_render_buffer(hWnd);
+        case WM_SIZE: if (!(w_param == SIZE_MAXIMIZED)) return 0; 
+        case WM_EXITSIZEMOVE: {
+            init_render_buffer(hWnd);
             break;
         }
-       case WM_EXITSIZEMOVE: {
-           init_render_buffer(hWnd);
-           KillTimer(hWnd, 0);
-           break;
-       }
-       case WM_ENTERSIZEMOVE: {
-           SetTimer(hWnd, 0, 1, NULL);
-           break;
-       }
-       case WM_TIMER:
-           tick();
-           render();
-           InvalidateRect(hWnd, NULL, TRUE);
-           break;
                            
-       case WM_PAINT: {
-           PAINTSTRUCT ps;
-           HDC hdc = BeginPaint(hWnd, &ps); 
-           StretchDIBits(hdc, 0, 0, 
-               render_buffer.width, render_buffer.height, 0, 0, 
-               render_buffer.width, render_buffer.height, 
-               render_buffer.pixels, &win32_bitmap_info, 
-               DIB_RGB_COLORS, SRCCOPY);
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hWnd, &ps); 
+            StretchDIBits(hdc, 0, 0, 
+                render_buffer.width, render_buffer.height, 0, 0, 
+                render_buffer.width, render_buffer.height, 
+                render_buffer.pixels, &win32_bitmap_info, 
+                DIB_RGB_COLORS, SRCCOPY);
 
-           EndPaint(hWnd, &ps);
-           break; 
-       }
-       case WM_ERASEBKGND:
-           return 1;
-       case WM_DESTROY:
-       case WM_CLOSE: {
-           PostQuitMessage(0);
-           running = false;
+            EndPaint(hWnd, &ps);
+            break; 
+        }
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_DESTROY:
+        case WM_CLOSE: {
+            PostQuitMessage(0);
+            running = false;
+            break;
+        }
+        default:
+           return DefWindowProc(hWnd, message, w_param, l_param);
            break;
-       }
-       default:
-          return DefWindowProc(hWnd, message, w_param, l_param);
-          break;
-   }
+    }
 
-   return 0;
+    return 0;
 }

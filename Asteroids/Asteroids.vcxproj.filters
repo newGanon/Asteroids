@@ -27,6 +27,9 @@
     <ClCompile Include="math.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="entity.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="util.h">
@@ -39,6 +42,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="math.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="entity.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
