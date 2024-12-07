@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 typedef int8_t i8;
 typedef int16_t i16;
@@ -17,10 +18,6 @@ typedef float f32;
 typedef double f64;
 
 typedef size_t size;
-
-#define bool u8
-#define false 0
-#define true 1
 
 #define PI 3.14159265358979323846
 #define PI_2 PI/2

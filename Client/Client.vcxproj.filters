@@ -18,34 +18,5 @@
     <ClCompile Include="main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="graphic.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="player.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="math.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="entity.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="util.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="player.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="math.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="graphic.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="entity.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

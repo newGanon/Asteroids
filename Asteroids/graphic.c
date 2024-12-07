@@ -46,7 +46,6 @@ static void draw_mesh(Render_Buffer rb, WireframeMesh m, vec2 pos, f32 angle) {
 }
 
 
-
 void draw_player(Render_Buffer rb, Player player) {
 
     draw_mesh(rb, player.mesh, player.pos, player.ang);
