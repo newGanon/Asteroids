@@ -24,11 +24,10 @@ static Player player;
 static EntityManager entity_man;
 
 static u64 last_time;
-
+static u64 last_asteroid_spawn;
 
 // Windows specific variables
 BITMAPINFO win32_bitmap_info;
-
 
 
 u64 get_milliseconds() {
@@ -63,12 +62,24 @@ void init_render_buffer(HWND hWnd) {
     win32_bitmap_info.bmiHeader.biCompression = BI_RGB;
 }
 
+
 void tick() {
     u64 delta_time = time_since(last_time);
     last_time += delta_time;
     if (delta_time >= 500) delta_time = 500;
+    // spawn asteroid every 5 seconds
+    last_asteroid_spawn += delta_time;
+    if(last_asteroid_spawn > 500) {
+        spawn_asteroid(&entity_man);
+        last_asteroid_spawn = 0;
+    }
+
+    // update position
     update_player(&player, delta_time, &entity_man);
     update_entities(&entity_man, delta_time);
+    // handle collsions
+    player_collisions(&player);
+    entity_collisions(&entity_man);
 }
 
 void render() {
@@ -161,32 +172,12 @@ int WINAPI wWinMain(
     player.acceleration = 0.5f;
     player.velocity = (vec2){ 0 };
     player.ang = 0;
-    player.mesh.points = (vec2*)malloc(4 * sizeof(vec2));
+    player.mesh = create_player_mesh(0.4f);
 
-    f32 player_size = 0.4f;
-    player.mesh.points[0] = (vec2){ -0.05f * player_size, 0.05f * player_size };
-    player.mesh.points[1] = (vec2){ 0.1f   * player_size, 0 * player_size };
-    player.mesh.points[2] = (vec2){ -0.05f * player_size, -0.05f * player_size };
-    player.mesh.points[3] = (vec2){ -0.02f * player_size, 0      * player_size };
-    player.mesh.point_amt = 4;
-    
-    Entity e = {
-        .pos = (vec2){0.2f, 0.5f},
-        .vel = (vec2){0.1f, 0.0f},
-        .type = ASTEROID,
-        .mesh.points = (vec2*)malloc(4 * sizeof(vec2)),
-        .mesh.point_amt = 4,
-    };
-    e.mesh.points[0] = (vec2){ -0.1, -0.1 };
-    e.mesh.points[1] = (vec2){ -0.1,  0.1 };
-    e.mesh.points[2] = (vec2){  0.1,  0.1 };
-    e.mesh.points[3] = (vec2){  0.1, -0.1 };
+    last_asteroid_spawn = 0;
 
     //TODO make memory allocation for entities dynamic
-    entity_man.entities = (Entity*)malloc(100 * sizeof(Entity));
-    add_entity(&entity_man, e);
-
-
+    entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
     
     // Main message loop
     while (running) {

@@ -15,3 +15,4 @@ void draw_line(Render_Buffer rb, ivec2 v0, ivec2 v1, u32 color);
 
 void draw_player(Render_Buffer rb, Player player);
 void draw_entities(Render_Buffer rb, EntityManager manager);
+

@@ -3,6 +3,8 @@
 #include <math.h>
 
 vec2 vec2_add(vec2 v1, vec2 v2);
+vec2 vec2_scale(vec2 v, f32 factor);
+
 vec2 vec2_from_ang(f32 ang, f32 len);
 ivec2 vec2_to_ivec2(vec2 v);
 
@@ -14,6 +16,10 @@ ivec2 pos_to_screen_relative_rotate(vec2 point, vec2 relative_to, f32 angle, i32
 vec2 vec2_rotate(vec2 v, f32 ang);
 
 bool point_outside_rect(vec2 p, vec2 v0, vec2 v1);
+
+bool circle_intersect(vec2 c0, f32 r0, vec2 c1, f32 r1);
+
+i32 random_between(i32 lower, i32 upper);
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))

@@ -23,3 +23,4 @@ typedef struct Player_s {
 } Player;
 
 void update_player(Player* player, u64 delta_time, EntityManager* manager);
+void player_collisions(Player* player);

@@ -53,7 +53,7 @@ void draw_player(Render_Buffer rb, Player player) {
 
     if (player.input.accelerate) {
         f32 size = 0.4;
-        i32 r = (rand() % (9 - 7 + 1)) + 7;
+        i32 r = random_between(7, 9);
         ivec2 p5 = pos_to_screen_relative_rotate( (vec2) { -0.04f * size,  0.03f * size }, player.pos, player.ang, rb.height, rb.width);
         ivec2 p6 = pos_to_screen_relative_rotate( (vec2) { -0.04f * size, -0.03f * size }, player.pos, player.ang, rb.height, rb.width);
         ivec2 p7 = pos_to_screen_relative_rotate( (vec2) { -(r * 0.01f) * size, 0 * size }, player.pos, player.ang, rb.height, rb.width);
@@ -93,16 +93,28 @@ void draw_entities(Render_Buffer rb, EntityManager manager) {
     for (size_t i = 0; i < manager.entity_amt; i++)
     {
         Entity e = manager.entities[i];
-        if (e.type == BULLET) {
-            f32 size = 0.003f;
-            ivec2 p0 = pos_to_screen((vec2) { e.pos.x - size, e.pos.y - size }, rb.height, rb.width);
-            ivec2 p1 = pos_to_screen((vec2) { e.pos.x + size, e.pos.y + size }, rb.height, rb.width);
-            draw_rectangle(rb, p0, p1);
-            
-        }
-        else {
-            if (e.mesh.point_amt == 0) return;
-            draw_mesh(rb, e.mesh, e.pos, 0);
+
+        switch (e.type)
+        {
+            case BULLET: {
+                ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, rb.height, rb.width);
+                ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, rb.height, rb.width);
+                draw_rectangle(rb, p0, p1);
+                break;
+            }
+            case ASTEROID: {
+                if (e.mesh.point_amt == 0) return;
+                draw_mesh(rb, e.mesh, e.pos, 0);
+                break;
+            }
+            case PARTICLE_SQUARE: {
+                ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, rb.height, rb.width);
+                ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, rb.height, rb.width);
+                draw_rectangle(rb, p0, p1);
+                break;
+            }
+            default:
+                break;
         }
     }
 
