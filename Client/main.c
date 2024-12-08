@@ -1,5 +1,6 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
 #pragma comment(lib, "Ws2_32.lib")
 
 #include "stdio.h"
@@ -27,16 +28,14 @@ bool init_client() {
 
 	// get socket
 	if (getaddrinfo("localhost", DEFAULT_PORT, &hints, &result)) return false;
-	SOCKET connect_socket = INVALID_SOCKET;
-
-	ptr = result;
-	connect_socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
-	if (connect_socket == INVALID_SOCKET) {
-		freeaddrinfo(result);
-		return 0;
-	}
+	connect_socket = INVALID_SOCKET;
 
 	for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
+		connect_socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+		if (connect_socket == INVALID_SOCKET) {
+			freeaddrinfo(result);
+			return 0;
+		}
 		if (connect(connect_socket, ptr->ai_addr, (int)ptr->ai_addrlen) == SOCKET_ERROR) {
 			closesocket(connect_socket);
 			connect_socket = INVALID_SOCKET;
@@ -55,28 +54,28 @@ void clean_up() {
 	WSACleanup();
 }
 
-/*
+
 bool send_data() {
 	const char* sendbuf = "this is the client";
-	WSABUF buf = { .buf = sendbuf , .len = (int)strlen(sendbuf) };
-	DWORD bytesSent = 0;
 
-	int res;
-	if (res = WSASendTo(connect_socket, &buf, 1, 0, 0, 0, &bytesSent, 0, 0, 0) == SOCKET_ERROR) {
-		close_socket(connect_socket);
+	int res = send(connect_socket, sendbuf, (int)strlen(sendbuf)+1, 0);
+	if (res == SOCKET_ERROR) {
+		closesocket(connect_socket);
 		return false;
 	}
-
-	printf("Sent %lu bytes: %s\n", bytesSent, sendbuf);
+	printf("test");
+	//printf("Sent %d bytes: %s\n", res, sendbuf);
 	return true;
-}*/
+}
 
 i32 client_main() {
 	if (!init_network()) return 1;
 	if (!init_client()) return 1;
 
-	while (true) {
-
+	while (true) { 
+		send_data();
+		Sleep(2000);
+		printf("something else");
 	}
 	return 0;
 }

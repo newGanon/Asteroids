@@ -1,5 +1,6 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
 #pragma comment(lib, "Ws2_32.lib")
 
 #include "stdio.h"
@@ -30,6 +31,7 @@ bool init_server() {
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_flags = AI_PASSIVE;
+
 	if (getaddrinfo(NULL, DEFAULT_PORT, &hints, &result)) {
 		return false;
 	}
@@ -57,7 +59,8 @@ bool init_server() {
 bool accept_connection() { 
 	struct sockaddr sa_client;
 	int i_client_size = sizeof(sa_client);
-	accept_socket[accept_socket_amt] = WSAAccept(listen_socket, &sa_client, &i_client_size, NULL, NULL);
+	///accept_socket[accept_socket_amt] = WSAAccept(listen_socket, &sa_client, &i_client_size, NULL, NULL);
+	accept_socket[accept_socket_amt] = accept(listen_socket, NULL, NULL);
 	if (accept_socket[accept_socket_amt] == INVALID_SOCKET) return false;
 	u_long mode = 1;
 	if (ioctlsocket(accept_socket[accept_socket_amt], FIONBIO, &mode) == SOCKET_ERROR) {
@@ -78,7 +81,7 @@ void clean_up() {
 
 
 bool recieve_data() {
-	char buffer[512];
+	char buffer[19];
 	int result = recv(accept_socket[0], buffer, sizeof(buffer), 0);
 
 	if (result > 0) {
@@ -87,17 +90,12 @@ bool recieve_data() {
 	else if (result == 0) {
 		printf("Connection closed by peer.\n");
 		closesocket(socket);
+		return false;
 	}
 	else {
 		int error_code = WSAGetLastError();
-		if (error_code == WSAEWOULDBLOCK) {
-			printf("No data available right now, would block.\n");
-		}
-		else {
-			printf("recv failed: %d\n", error_code);
-			closesocket(socket);
-			WSACleanup();
-		}
+		if (error_code == WSAEWOULDBLOCK) { printf("NO DATA WOULD BLOCK"); return true;}
+		else { return false; }
 	}
 }
 
@@ -108,8 +106,10 @@ i32 server_main() {
 	while (true) {
 		if (accept_connection()) printf("NEUER CLIENT");
 		if (accept_socket[0] != INVALID_SOCKET) {
-			//if (!send_data()) return 1;
-			//if (!recieve_data()) return 1;
+			while (true) { 
+				if (!recieve_data()) break; 
+				Sleep(500);
+			}
 		}
 	}
 	return 0;
