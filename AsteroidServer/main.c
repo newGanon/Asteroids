@@ -6,6 +6,7 @@
 #include "util.h"
 
 #define DEFAULT_PORT "27015"
+#define DEFAULT_BUFLEN 512
 #define MAX_CLIENTS 4
 
 SOCKET listen_socket;
@@ -34,8 +35,10 @@ bool init_server() {
 	}
 	listen_socket = INVALID_SOCKET;
 	listen_socket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-	if (listen_socket == INVALID_SOCKET) return false;
-
+	if (listen_socket == INVALID_SOCKET) {
+		closesocket(listen_socket);
+		return false;
+	}
 	if (bind(listen_socket, result->ai_addr, (i32)result->ai_addrlen) != SOCKET_ERROR) {
 		if (listen(listen_socket, MAX_CLIENTS) != SOCKET_ERROR) {
 			u_long mode = 1;
@@ -56,10 +59,10 @@ bool accept_connection() {
 	int i_client_size = sizeof(sa_client);
 	accept_socket[accept_socket_amt] = WSAAccept(listen_socket, &sa_client, &i_client_size, NULL, NULL);
 	if (accept_socket[accept_socket_amt] == INVALID_SOCKET) return false;
-	accept_socket_amt++;
 	u_long mode = 1;
 	if (ioctlsocket(accept_socket[accept_socket_amt], FIONBIO, &mode) == SOCKET_ERROR) {
 		closesocket(accept_socket[accept_socket_amt]);
+		accept_socket[accept_socket_amt] = INVALID_SOCKET;
 		return false;
 	}
 	accept_socket_amt++;
@@ -70,8 +73,32 @@ void clean_up() {
 	for (size_t i = 0; i < accept_socket_amt; i++) {
 		closesocket(accept_socket);
 	}
-	closesocket(listen_socket);
 	WSACleanup();
+}
+
+
+bool recieve_data() {
+	char buffer[512];
+	int result = recv(accept_socket[0], buffer, sizeof(buffer), 0);
+
+	if (result > 0) {
+		printf("Received data: %s\n", buffer);
+	}
+	else if (result == 0) {
+		printf("Connection closed by peer.\n");
+		closesocket(socket);
+	}
+	else {
+		int error_code = WSAGetLastError();
+		if (error_code == WSAEWOULDBLOCK) {
+			printf("No data available right now, would block.\n");
+		}
+		else {
+			printf("recv failed: %d\n", error_code);
+			closesocket(socket);
+			WSACleanup();
+		}
+	}
 }
 
 i32 server_main() {
@@ -79,8 +106,10 @@ i32 server_main() {
 	if (!init_server()) return 1;
 
 	while (true) {
-		if (accept_connection()) {
-			printf("NEUER CLIENT");
+		if (accept_connection()) printf("NEUER CLIENT");
+		if (accept_socket[0] != INVALID_SOCKET) {
+			//if (!send_data()) return 1;
+			//if (!recieve_data()) return 1;
 		}
 	}
 	return 0;

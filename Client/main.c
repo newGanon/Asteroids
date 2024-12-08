@@ -6,8 +6,9 @@
 #include "util.h"
 
 #define DEFAULT_PORT "27015"
+#define DEFAULT_BUFLEN 512
 
-SOCKET socket;
+SOCKET connect_socket;
 
 bool init_network() {
 	WSADATA wsaData;
@@ -24,27 +25,58 @@ bool init_client() {
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 
-	// TODO finish init
+	// get socket
+	if (getaddrinfo("localhost", DEFAULT_PORT, &hints, &result)) return false;
+	SOCKET connect_socket = INVALID_SOCKET;
+
+	ptr = result;
+	connect_socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+	if (connect_socket == INVALID_SOCKET) {
+		freeaddrinfo(result);
+		return 0;
+	}
+
+	for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
+		if (connect(connect_socket, ptr->ai_addr, (int)ptr->ai_addrlen) == SOCKET_ERROR) {
+			closesocket(connect_socket);
+			connect_socket = INVALID_SOCKET;
+			continue;
+		}
+		break;
+	}
+	freeaddrinfo(result);
+
+	if (connect_socket == INVALID_SOCKET) return false;
 	return true;
 }
 
-
-bool connect_client() {
-	//TODO connect to server
-	return true;
-}
 
 void clean_up() {
 	WSACleanup();
 }
 
+/*
+bool send_data() {
+	const char* sendbuf = "this is the client";
+	WSABUF buf = { .buf = sendbuf , .len = (int)strlen(sendbuf) };
+	DWORD bytesSent = 0;
+
+	int res;
+	if (res = WSASendTo(connect_socket, &buf, 1, 0, 0, 0, &bytesSent, 0, 0, 0) == SOCKET_ERROR) {
+		close_socket(connect_socket);
+		return false;
+	}
+
+	printf("Sent %lu bytes: %s\n", bytesSent, sendbuf);
+	return true;
+}*/
 
 i32 client_main() {
 	if (!init_network()) return 1;
 	if (!init_client()) return 1;
 
 	while (true) {
-		connect_client();
+
 	}
 	return 0;
 }
