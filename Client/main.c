@@ -5,6 +5,7 @@
 
 #include "stdio.h"
 #include "util.h"
+#include "message.h"
 
 #define DEFAULT_PORT "27015"
 #define DEFAULT_BUFLEN 512
@@ -49,21 +50,30 @@ bool init_client() {
 	return true;
 }
 
-
 void clean_up() {
 	WSACleanup();
 }
 
 
 bool send_data() {
-	const char* sendbuf = "this is the client";
 
-	int res = send(connect_socket, sendbuf, (int)strlen(sendbuf)+1, 0);
+	Message m = {
+		.msg_header = {
+			.type = PLAYER_POSITION,
+			.size = sizeof(MessageHeader) + sizeof(MessagePlayerPostition)
+		},
+		.pos.pos = {0.5f, 1.5f},
+	};
+
+	char* sendbuf = &m;
+	size sendbuf_len = sizeof(MessageHeader) + sizeof(MessagePlayerPostition);
+
+	int res = send(connect_socket, sendbuf, sendbuf_len, 0);
 	if (res == SOCKET_ERROR) {
 		closesocket(connect_socket);
 		return false;
 	}
-	printf("test");
+	printf("Message has been sent\n");
 	//printf("Sent %d bytes: %s\n", res, sendbuf);
 	return true;
 }
@@ -75,7 +85,7 @@ i32 client_main() {
 	while (true) { 
 		send_data();
 		Sleep(2000);
-		printf("something else");
+		printf("Client does something else now\n");
 	}
 	return 0;
 }

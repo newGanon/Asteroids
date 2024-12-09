@@ -145,6 +145,7 @@
     <ClInclude Include="entity.h" />
     <ClInclude Include="graphic.h" />
     <ClInclude Include="math.h" />
+    <ClInclude Include="message.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="util.h" />
   </ItemGroup>

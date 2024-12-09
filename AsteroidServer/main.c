@@ -5,6 +5,7 @@
 
 #include "stdio.h"
 #include "util.h"
+#include "message.h"
 
 #define DEFAULT_PORT "27015"
 #define DEFAULT_BUFLEN 512
@@ -13,6 +14,11 @@
 SOCKET listen_socket;
 SOCKET accept_socket[4];
 size accept_socket_amt;
+
+OVERLAPPED overlapped = { 0 };
+char* char_buf[sizeof(Message)];
+WSABUF buf = { .buf = char_buf, .len = sizeof(Message) };
+
 
 
 bool init_network() {
@@ -59,7 +65,6 @@ bool init_server() {
 bool accept_connection() { 
 	struct sockaddr sa_client;
 	int i_client_size = sizeof(sa_client);
-	///accept_socket[accept_socket_amt] = WSAAccept(listen_socket, &sa_client, &i_client_size, NULL, NULL);
 	accept_socket[accept_socket_amt] = accept(listen_socket, NULL, NULL);
 	if (accept_socket[accept_socket_amt] == INVALID_SOCKET) return false;
 	u_long mode = 1;
@@ -80,35 +85,48 @@ void clean_up() {
 }
 
 
-bool recieve_data() {
-	char buffer[19];
-	int result = recv(accept_socket[0], buffer, sizeof(buffer), 0);
+bool recieve_data(i32 idx) {
+	DWORD flags = 0;
+	int err = 0;
+	int rc = 0;
+	DWORD bytes_revieved;
 
-	if (result > 0) {
-		printf("Received data: %s\n", buffer);
+	bool still_revieving = true;
+
+	while (still_revieving) {
+		rc = WSAGetOverlappedResult(accept_socket[idx], &overlapped, &bytes_revieved, FALSE, &flags);
+		if (rc == FALSE) {
+			if ((rc == SOCKET_ERROR) && WSAGetLastError() != WSA_IO_INCOMPLETE) {
+				return false;
+			}
+			// Asnchronous function hasn't completed yet return
+			break;
+		}
+		if (bytes_revieved > 0) {
+			Message msg;
+			memcpy(&msg, buf.buf, bytes_revieved);
+			printf("MESSAGE RECIEVED\n");
+		}
+		rc = WSARecv(accept_socket[idx], &buf, 1, NULL, &flags, &overlapped, NULL);
+		if ((rc == SOCKET_ERROR) && (WSA_IO_PENDING != (err = WSAGetLastError()))) {
+			return false;
+		}
 	}
-	else if (result == 0) {
-		printf("Connection closed by peer.\n");
-		closesocket(socket);
-		return false;
-	}
-	else {
-		int error_code = WSAGetLastError();
-		if (error_code == WSAEWOULDBLOCK) { printf("NO DATA WOULD BLOCK"); return true;}
-		else { return false; }
-	}
+
+	return true;
 }
 
 i32 server_main() {
 	if (!init_network()) return 1;
 	if (!init_server()) return 1;
 
-	while (true) {
-		if (accept_connection()) printf("NEUER CLIENT");
-		if (accept_socket[0] != INVALID_SOCKET) {
-			while (true) { 
-				if (!recieve_data()) break; 
-				Sleep(500);
+	bool running = true;
+
+	while (running) {
+		if (accept_connection()) printf("NEUER CLIENT\n");
+		for (size_t i = 0; i < accept_socket_amt; i++) {
+			if (accept_socket != INVALID_SOCKET) {
+				if (!recieve_data(i)) running = false;
 			}
 		}
 	}
