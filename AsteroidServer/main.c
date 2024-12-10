@@ -6,6 +6,7 @@
 #include "stdio.h"
 #include "util.h"
 #include "message.h"
+#include "network.h"
 
 #define DEFAULT_PORT "27015"
 #define DEFAULT_BUFLEN 512
@@ -16,8 +17,11 @@ SOCKET accept_socket[4];
 size accept_socket_amt;
 
 OVERLAPPED overlapped = { 0 };
-char* char_buf[sizeof(Message)];
-WSABUF buf = { .buf = char_buf, .len = sizeof(Message) };
+//malloc the size of message in real program
+char* char_buf[24];
+WSABUF buf = { .buf = char_buf, .len = sizeof(Message)};
+
+NetworkSocket ns;
 
 
 
@@ -89,7 +93,7 @@ bool recieve_data(i32 idx) {
 	DWORD flags = 0;
 	int err = 0;
 	int rc = 0;
-	DWORD bytes_revieved;
+	DWORD bytes_revieved = 0;
 
 	bool still_revieving = true;
 
@@ -102,13 +106,19 @@ bool recieve_data(i32 idx) {
 			// Asnchronous function hasn't completed yet return
 			break;
 		}
-		if (bytes_revieved > 0) {
+		else if (bytes_revieved != 0) {
 			Message msg;
 			memcpy(&msg, buf.buf, bytes_revieved);
+			printf("%f, %f", msg.pos.pos.x, msg.pos.pos.y);
 			printf("MESSAGE RECIEVED\n");
 		}
 		rc = WSARecv(accept_socket[idx], &buf, 1, NULL, &flags, &overlapped, NULL);
-		if ((rc == SOCKET_ERROR) && (WSA_IO_PENDING != (err = WSAGetLastError()))) {
+		if ((rc == SOCKET_ERROR) && (WSA_IO_PENDING != WSAGetLastError())) {
+			return false;
+		}
+		/// checking for internal status might
+		if (bytes_revieved == 0 && overlapped.Internal != 0) {
+			//connection closed
 			return false;
 		}
 	}
@@ -126,6 +136,7 @@ i32 server_main() {
 		if (accept_connection()) printf("NEUER CLIENT\n");
 		for (size_t i = 0; i < accept_socket_amt; i++) {
 			if (accept_socket != INVALID_SOCKET) {
+				Sleep(1000);
 				if (!recieve_data(i)) running = false;
 			}
 		}

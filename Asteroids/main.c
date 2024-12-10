@@ -9,11 +9,12 @@
 #include "entity.h"
 
 
-TCHAR sz_window_class[] = _T("DesktopApp");
-TCHAR sz_title[] = _T("Asteroids");
-TCHAR error_string[] = _T("Call to RegisterClassEx failed!");
+const TCHAR sz_window_class[] = _T("DesktopApp");
+const TCHAR sz_title[] = _T("Asteroids");
+const TCHAR error_string[] = _T("Call to RegisterClassEx failed!");
 
-HINSTANCE hInst;
+static HINSTANCE hInst;
+static HWND Wnd;
 
 LRESULT CALLBACK WndProc(_In_ HWND, _In_ UINT, _In_ WPARAM, _In_ LPARAM);
 
@@ -27,7 +28,7 @@ static u64 last_time;
 static u64 last_asteroid_spawn;
 
 // Windows specific variables
-BITMAPINFO win32_bitmap_info;
+static BITMAPINFO win32_bitmap_info;
 
 
 u64 get_milliseconds() {
@@ -93,20 +94,12 @@ void render() {
     draw_entities(render_buffer, entity_man);
 }
 
-/// <summary>
-/// Windows program entry point
-/// </summary>
-/// <param name="hInstance">Handle to an instance, some windows function need it</param>
-/// <param name="hPrevInstance">Not used</param>
-/// <param name="pCmdLine">Command line args asa Unicode string</param>
-/// <param name="nCmdShow">Flag that indicates whether the main application window is minimixed, maximized or shown normally</param>
-/// <returns>int value as a status code</returns>
-int WINAPI wWinMain(
-    _In_ HINSTANCE hInstance,
-    _In_opt_ HINSTANCE hPrevInstance,
-    _In_ LPWSTR lpCmdLine,
-    _In_ int nShowCmd
-) {
+
+int init_window(_In_ HINSTANCE hInstance,
+                _In_opt_ HINSTANCE hPrevInstance,
+                _In_ LPWSTR lpCmdLine,
+                _In_ int nShowCmd) {
+
     // Store handle
     hInst = hInstance;
 
@@ -166,6 +159,18 @@ int WINAPI wWinMain(
     // Init Render Buffer
     init_render_buffer(hWnd);
 
+    Wnd = hWnd;
+
+}
+
+
+int client_offline_main(_In_ HINSTANCE hInstance,
+                        _In_opt_ HINSTANCE hPrevInstance,
+                        _In_ LPWSTR lpCmdLine,
+                        _In_ int nShowCmd) {
+
+    init_window(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+
     // Random numbers
     srand(time(NULL));
 
@@ -185,42 +190,42 @@ int WINAPI wWinMain(
 
     //TODO make memory allocation for entities dynamic
     entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
-    
+
     // Main message loop
     while (running) {
         //input
         MSG msg;
 
-        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) 
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
             switch (msg.message) {
-                case WM_KEYUP:
-                case WM_KEYDOWN: {
-                    bool was_down = (msg.lParam >> 30) & 1;
-                    bool is_down = ((msg.lParam >> 31) & 1) == 0;
+            case WM_KEYUP:
+            case WM_KEYDOWN: {
+                bool was_down = (msg.lParam >> 30) & 1;
+                bool is_down = ((msg.lParam >> 31) & 1) == 0;
 
-                    switch (msg.wParam) {
-                        case VK_LEFT: player.input.turn_left = is_down; break;
-                        case VK_RIGHT: player.input.turn_right = is_down; break;
-                        case VK_UP: player.input.accelerate = is_down; break;
-                        case VK_SPACE: 
-                            if (!was_down && is_down) {
-                                player.input.shoot = true;
-                                break;
-                            }
+                switch (msg.wParam) {
+                case VK_LEFT: player.input.turn_left = is_down; break;
+                case VK_RIGHT: player.input.turn_right = is_down; break;
+                case VK_UP: player.input.accelerate = is_down; break;
+                case VK_SPACE:
+                    if (!was_down && is_down) {
+                        player.input.shoot = true;
+                        break;
                     }
-                    break;
                 }
-                case WM_LBUTTONDOWN: {
-                    break;
-                }
-                case WM_LBUTTONUP: {
-                    break;
-                }
-                default: {
-                    TranslateMessage(&msg);
-                    DispatchMessage(&msg);
-                }
+                break;
+            }
+            case WM_LBUTTONDOWN: {
+                break;
+            }
+            case WM_LBUTTONUP: {
+                break;
+            }
+            default: {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
             }
         }
 
@@ -229,9 +234,51 @@ int WINAPI wWinMain(
 
         // Render
         render();
-        InvalidateRect(hWnd, NULL, FALSE);
+        InvalidateRect(Wnd, NULL, FALSE);
     }
     return 0;
+
+}
+
+
+int client_online_main(_In_ HINSTANCE hInstance,
+                        _In_opt_ HINSTANCE hPrevInstance,
+                        _In_ LPWSTR lpCmdLine,
+                        _In_ int nShowCmd) {
+    init_window(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+
+    // Random numbers
+    srand(time(NULL));
+
+    // Timing
+    last_time = get_milliseconds();
+
+
+}
+
+/// <summary>
+/// Windows program entry point
+/// </summary>
+/// <param name="hInstance">Handle to an instance, some windows function need it</param>
+/// <param name="hPrevInstance">Not used</param>
+/// <param name="pCmdLine">Command line args asa Unicode string</param>
+/// <param name="nCmdShow">Flag that indicates whether the main application window is minimixed, maximized or shown normally</param>
+/// <returns>int value as a status code</returns>
+int WINAPI wWinMain(
+    _In_ HINSTANCE hInstance,
+    _In_opt_ HINSTANCE hPrevInstance,
+    _In_ LPWSTR lpCmdLine,
+    _In_ int nShowCmd) {
+
+    bool offline = false;
+    int ret;
+
+    if (offline) {
+        ret = client_offline_main(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+    }
+    else {
+        ret = client_online_main(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+    }
 }
 
 

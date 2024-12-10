@@ -62,17 +62,23 @@ bool send_data() {
 			.type = PLAYER_POSITION,
 			.size = sizeof(MessageHeader) + sizeof(MessagePlayerPostition)
 		},
-		.pos.pos = {0.5f, 1.5f},
+		.pos.pos = {1.0f, 1.0f},
 	};
 
 	char* sendbuf = &m;
-	size sendbuf_len = sizeof(MessageHeader) + sizeof(MessagePlayerPostition);
+	size sendbuf_len = sizeof(Message);
 
 	int res = send(connect_socket, sendbuf, sendbuf_len, 0);
 	if (res == SOCKET_ERROR) {
 		closesocket(connect_socket);
 		return false;
 	}
+	if (res == 0) {
+	// Connection closed
+		closesocket(connect_socket);
+		return false;
+	}
+
 	printf("Message has been sent\n");
 	//printf("Sent %d bytes: %s\n", res, sendbuf);
 	return true;
@@ -86,6 +92,7 @@ i32 client_main() {
 		send_data();
 		Sleep(2000);
 		printf("Client does something else now\n");
+		//shutdown(connect_socket, SD_SEND | SD_RECEIVE);
 	}
 	return 0;
 }

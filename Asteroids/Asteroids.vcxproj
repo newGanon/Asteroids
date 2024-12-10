@@ -135,13 +135,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="client.c" />
     <ClCompile Include="entity.c" />
     <ClCompile Include="graphic.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="math.c" />
+    <ClCompile Include="network.c" />
     <ClCompile Include="player.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="client.h" />
     <ClInclude Include="entity.h" />
     <ClInclude Include="graphic.h" />
     <ClInclude Include="math.h" />
