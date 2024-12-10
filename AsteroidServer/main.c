@@ -1,11 +1,5 @@
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <windows.h>
-#pragma comment(lib, "Ws2_32.lib")
 
 #include "stdio.h"
-#include "util.h"
-#include "message.h"
 #include "network.h"
 
 #define DEFAULT_PORT "27015"
@@ -13,15 +7,8 @@
 #define MAX_CLIENTS 4
 
 SOCKET listen_socket;
-SOCKET accept_socket[4];
-size accept_socket_amt;
-
-OVERLAPPED overlapped = { 0 };
-//malloc the size of message in real program
-char* char_buf[24];
-WSABUF buf = { .buf = char_buf, .len = sizeof(Message)};
-
-NetworkSocket ns;
+NetworkSocket cons[MAX_CLIENTS];
+size con_amt;
 
 
 
@@ -31,7 +18,7 @@ bool init_network() {
 }
 
 bool init_server() {
-	accept_socket_amt = 0;
+	con_amt = 0;
 	struct addrinfo* result = NULL,
 		* ptr = NULL,
 		hints;
@@ -69,60 +56,15 @@ bool init_server() {
 bool accept_connection() { 
 	struct sockaddr sa_client;
 	int i_client_size = sizeof(sa_client);
-	accept_socket[accept_socket_amt] = accept(listen_socket, NULL, NULL);
-	if (accept_socket[accept_socket_amt] == INVALID_SOCKET) return false;
+	cons[con_amt].sock = accept(listen_socket, NULL, NULL);
+	if (cons[con_amt].sock == INVALID_SOCKET) return false;
 	u_long mode = 1;
-	if (ioctlsocket(accept_socket[accept_socket_amt], FIONBIO, &mode) == SOCKET_ERROR) {
-		closesocket(accept_socket[accept_socket_amt]);
-		accept_socket[accept_socket_amt] = INVALID_SOCKET;
+	if (ioctlsocket(cons[con_amt].sock, FIONBIO, &mode) == SOCKET_ERROR) {
+		closesocket(cons[con_amt].sock);
+		cons[con_amt].sock = INVALID_SOCKET;
 		return false;
 	}
-	accept_socket_amt++;
-	return true;
-}
-
-void clean_up() {
-	for (size_t i = 0; i < accept_socket_amt; i++) {
-		closesocket(accept_socket);
-	}
-	WSACleanup();
-}
-
-
-bool recieve_data(i32 idx) {
-	DWORD flags = 0;
-	int err = 0;
-	int rc = 0;
-	DWORD bytes_revieved = 0;
-
-	bool still_revieving = true;
-
-	while (still_revieving) {
-		rc = WSAGetOverlappedResult(accept_socket[idx], &overlapped, &bytes_revieved, FALSE, &flags);
-		if (rc == FALSE) {
-			if ((rc == SOCKET_ERROR) && WSAGetLastError() != WSA_IO_INCOMPLETE) {
-				return false;
-			}
-			// Asnchronous function hasn't completed yet return
-			break;
-		}
-		else if (bytes_revieved != 0) {
-			Message msg;
-			memcpy(&msg, buf.buf, bytes_revieved);
-			printf("%f, %f", msg.pos.pos.x, msg.pos.pos.y);
-			printf("MESSAGE RECIEVED\n");
-		}
-		rc = WSARecv(accept_socket[idx], &buf, 1, NULL, &flags, &overlapped, NULL);
-		if ((rc == SOCKET_ERROR) && (WSA_IO_PENDING != WSAGetLastError())) {
-			return false;
-		}
-		/// checking for internal status might
-		if (bytes_revieved == 0 && overlapped.Internal != 0) {
-			//connection closed
-			return false;
-		}
-	}
-
+	con_amt++;
 	return true;
 }
 
@@ -134,16 +76,19 @@ i32 server_main() {
 
 	while (running) {
 		if (accept_connection()) printf("NEUER CLIENT\n");
-		for (size_t i = 0; i < accept_socket_amt; i++) {
-			if (accept_socket != INVALID_SOCKET) {
-				Sleep(1000);
-				if (!recieve_data(i)) running = false;
+		for (size_t i = 0; i < con_amt; i++) {
+			if (listen_socket != INVALID_SOCKET) {
+				//Sleep(10000);
+				Message msg;
+				while (recieve_message(&cons[i], &msg)) {
+					printf("MESSAGE RECIEVED: ");
+					printf("%f, %f\n", msg.pos.pos.x, msg.pos.pos.y);
+				}
 			}
 		}
 	}
 	return 0;
 }
-
 
 int main() {
 	i32 exit_code = server_main();

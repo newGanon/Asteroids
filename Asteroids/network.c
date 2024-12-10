@@ -1,9 +1,3 @@
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#pragma comment(lib, "Ws2_32.lib")
-
-#include "util.h"
-#include "message.h"
 #include "network.h"
 
 
@@ -26,10 +20,11 @@ bool get_message_from_buffer(u8* buffer, u32* bytes_used, Message* msg) {
 
 bool recieve_message(NetworkSocket* s, Message* msg) {
 	int flags = 0;
-	int rc = recv(&s->sock, &s->buffer[s->bytes_used], sizeof(Message) + s->bytes_used, flags);
+	int rc = recv(s->sock, &s->buffer[s->bytes_used], sizeof(Message) - s->bytes_used, flags);
 
 	if (rc == SOCKET_ERROR) {
-		if (WSAGetLastError() == WSAEWOULDBLOCK) {
+		int err = WSAGetLastError();
+		if (err == WSAEWOULDBLOCK) {
 			return false;
 		}
 		//TODO ERROR HANDLING;
@@ -40,6 +35,7 @@ bool recieve_message(NetworkSocket* s, Message* msg) {
 		//TODO CLOSE CONNECTION
 		return false;
 	}
+	s->bytes_used += rc;
 	return get_message_from_buffer(s->buffer, &s->bytes_used, msg);
 }
 

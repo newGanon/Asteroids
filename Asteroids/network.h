@@ -22,3 +22,7 @@ typedef struct ClientSocket_s {
 typedef struct ServerSocket_s {
 	NetworkSocket socks[MAX_SERVER_SOCKETS];
 }ServerSocket;
+
+
+bool recieve_message(NetworkSocket* s, Message* msg);
+bool send_message(NetworkSocket* s, Message* msg);

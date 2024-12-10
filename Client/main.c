@@ -66,10 +66,11 @@ bool send_data() {
 	};
 
 	char* sendbuf = &m;
-	size sendbuf_len = sizeof(Message);
+	size sendbuf_len = sizeof(MessageHeader) + sizeof(MessagePlayerPostition);
 
 	int res = send(connect_socket, sendbuf, sendbuf_len, 0);
 	if (res == SOCKET_ERROR) {
+		int err = WSAGetLastError();
 		closesocket(connect_socket);
 		return false;
 	}

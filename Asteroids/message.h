@@ -14,7 +14,6 @@ typedef struct MessagePOS_s {
 	vec2 pos2;
 } MessagePOS;
 
-
 typedef struct MessageHeader_s {
 	message_type type;
 	u32 size;
