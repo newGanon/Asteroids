@@ -1,18 +1,20 @@
 #pragma once
 #include "util.h"
+#include "entity.h"
 
 typedef enum message_type_e {
-	PLAYER_POSITION,
+	PLAYER_STATE,
+	ENTITY_STATE
 } message_type;
 
-typedef struct MessagePlayerPostition_s {
-	vec2 pos;
-} MessagePlayerPostition;
+typedef struct MessagePlayerState_s {
+	Entity player_ent;
+	bool shooting;
+} MessagePlayerState;
 
-typedef struct MessagePOS_s {
-	vec2 pos1;
-	vec2 pos2;
-} MessagePOS;
+typedef struct MessageEntityState_s {
+	Entity ent;
+} MessageEntityState;
 
 typedef struct MessageHeader_s {
 	message_type type;
@@ -22,7 +24,7 @@ typedef struct MessageHeader_s {
 typedef struct Message_s {
 	MessageHeader msg_header;
 	union {
-		MessagePlayerPostition pos;
-		MessagePOS p;
+		MessagePlayerState p_state;
+		MessageEntityState e_state;
 	};
 } Message;

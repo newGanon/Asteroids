@@ -1,7 +1,7 @@
 #include "graphic.h"
 #include "math.h"
 
-void clear_screen(Render_Buffer rb, u32 color) {
+void clear_screen(RenderBuffer rb, u32 color) {
 	for (size_t i = 0; i < rb.width; i++) {
 		for (size_t j = 0; j < rb.height; j++) {
 			rb.pixels[i + rb.width * j] = color;
@@ -9,7 +9,7 @@ void clear_screen(Render_Buffer rb, u32 color) {
 	}
 }
 
-void draw_line(Render_Buffer rb, ivec2 v0, ivec2 v1, u32 color) {
+void draw_line(RenderBuffer rb, ivec2 v0, ivec2 v1, u32 color) {
     f32 dx = abs(v1.x - v0.x);
     f32 sx = (v0.x < v1.x) ? 1 : -1;
     f32 dy = -abs(v1.y - v0.y);
@@ -34,7 +34,7 @@ void draw_line(Render_Buffer rb, ivec2 v0, ivec2 v1, u32 color) {
 }
 
 
-static void draw_mesh(Render_Buffer rb, WireframeMesh m, vec2 pos, f32 angle) {
+static void draw_mesh(RenderBuffer rb, WireframeMesh m, vec2 pos, f32 angle) {
     ivec2 p0 = pos_to_screen_relative_rotate(m.points[0], pos, angle, rb.height, rb.width);
     ivec2 first = p0;
     for (size_t i = 1; i < m.point_amt; i++) {
@@ -46,15 +46,16 @@ static void draw_mesh(Render_Buffer rb, WireframeMesh m, vec2 pos, f32 angle) {
 }
 
 
-void draw_player(Render_Buffer rb, Player player) {
+void draw_player(RenderBuffer rb, Player player) {
 
-    draw_mesh(rb, player.mesh, player.pos, player.ang);
+    Entity p = player.p;
+    draw_mesh(rb, p.mesh, p.pos, p.ang);
 
     if (player.input.accelerate) {
         i32 r = random_between(7, 9);
-        ivec2 p5 = pos_to_screen_relative_rotate( (vec2) { -4.0f * player.size, 3.0f * player.size }, player.pos, player.ang, rb.height, rb.width);
-        ivec2 p6 = pos_to_screen_relative_rotate( (vec2) { -4.0f * player.size, -3.0f * player.size }, player.pos, player.ang, rb.height, rb.width);
-        ivec2 p7 = pos_to_screen_relative_rotate( (vec2) { -r * player.size, 0 * player.size }, player.pos, player.ang, rb.height, rb.width);
+        ivec2 p5 = pos_to_screen_relative_rotate( (vec2) { -4.0f * p.size, 3.0f * p.size }, p.pos, p.ang, rb.height, rb.width);
+        ivec2 p6 = pos_to_screen_relative_rotate( (vec2) { -4.0f * p.size, -3.0f * p.size }, p.pos, p.ang, rb.height, rb.width);
+        ivec2 p7 = pos_to_screen_relative_rotate( (vec2) { -r * p.size, 0 * p.size }, p.pos, p.ang, rb.height, rb.width);
 
         draw_line(rb, p5, p7, 0x00FFFFFF);
         draw_line(rb, p6, p7, 0x00FFFFFF);
@@ -62,7 +63,7 @@ void draw_player(Render_Buffer rb, Player player) {
 }
 
 
-void draw_rectangle(Render_Buffer rb, ivec2 v0, ivec2 v1) {
+void draw_rectangle(RenderBuffer rb, ivec2 v0, ivec2 v1) {
     if (v0.x > v1.x) {
         f32 tmp = v0.x;
         v0.x = v1.x;
@@ -87,7 +88,7 @@ void draw_rectangle(Render_Buffer rb, ivec2 v0, ivec2 v1) {
 }
 
 
-void draw_entities(Render_Buffer rb, EntityManager manager) {
+void draw_entities(RenderBuffer rb, EntityManager manager) {
     for (size_t i = 0; i < manager.entity_amt; i++)
     {
         Entity e = manager.entities[i];

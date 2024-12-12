@@ -1,8 +1,8 @@
 #include "entity.h"
-#include "math.h"
 
-#include <windows.h>
-#include <stdio.h>
+//start id at 100 to make space for players, as players a player id is their socket slot
+static u64 id = 100;
+
 
 void add_entity(EntityManager* manager, Entity e) {
 	manager->entities[manager->entity_amt++] = e;
@@ -13,6 +13,10 @@ void remove_entity(EntityManager* manager, size idx) {
 	manager->entity_amt--;
 }
 
+void overwrite_entity_idx(EntityManager* manager, Entity e, size idx) {
+	manager->entities[idx] = e;
+}
+
 Entity create_asteroid(vec2 pos, vec2 vel, f32 size) {
 	return (Entity) {
 		.pos = pos,
@@ -20,6 +24,8 @@ Entity create_asteroid(vec2 pos, vec2 vel, f32 size) {
 		.type = ASTEROID,
 		.size = size,
 		.mesh = create_asteroid_mesh(size),
+		.dirty = true,
+		.id = id++,
 	};	
 }
 
@@ -30,6 +36,8 @@ Entity create_particle_round(vec2 pos, vec2 vel, f32 size, i32 lifetime) {
 		.type = PARTICLE_SQUARE,
 		.size = size,
 		.lifetime = lifetime,
+		.dirty = true,
+		.id = id++,
 	};
 }
 
@@ -39,6 +47,8 @@ Entity create_bullet(vec2 pos, vec2 vel, f32 size) {
 		.vel = vel,
 		.type = BULLET,
 		.size = 0.003f,
+		.dirty = true,
+		.id = id++,
 	};
 }
 
@@ -80,19 +90,23 @@ void destroy_entity(EntityManager* manager, i32 idx) {
 void update_entities(EntityManager* manager, u32 delta_time) {
 	// Update movement
 	f32 dt = delta_time / 1000.0f;
-	for (i32 i = manager->entity_amt - 1; i >= 0; i--) {
+	for (i32 i = 0; i < manager->entity_amt; i++) {
 		Entity* e = &manager->entities[i];
+		if (e->type == PLAYER) continue;
 		if (has_life_time(e->type)) {
 			e->lifetime -= delta_time;
 			if (e->lifetime < 0) {
-				destroy_entity(manager, i);
+				e->dirty = true;
+				e->despawn = true;
 				continue;
 			}
 		}
 		e->pos = vec2_add(e->pos, (vec2) { e->vel.x* dt, e->vel.y* dt });
+		e->dirty = true;
 		f32 around = e->size * 3;
 		if (point_outside_rect(e->pos, (vec2) { 0 - around, 0 - around}, (vec2) { 1.77f + around, 1.0f + around})) {
-			destroy_entity(manager, i);
+			e->dirty = true;
+			e->despawn = true;
 		}
 	}
 }
@@ -101,39 +115,15 @@ void update_entities(EntityManager* manager, u32 delta_time) {
 void spawn_explosion(EntityManager* manager, vec2 pos, size amt) {
 	for (size_t i = 0; i < amt; i++) {
 		f32 ang = (random_between(0, (314 * 2)) / 100.0f);
-		f32 speed = (random_between(90, 110) / 1000.0f);
+		f32 speed = (random_between(60, 120) / 100.0f);
 		vec2 vel = vec2_from_ang(ang, speed);
 
-		add_entity(manager, create_particle_round(pos, vel, 0.01f, 1000));
+		add_entity(manager, create_particle_round(pos, vel, 0.001f, 200));
 	}
 }
 
 void entity_collisions(EntityManager* manager) {
-	for (i32 i = manager->entity_amt - 1; i > 0; i--) {
-		Entity e0 = manager->entities[i];
-		if (!has_hitbox(e0.type)) continue;
-		for (i32 j = i-1; j >= 0; j--) {
-			Entity e1 = manager->entities[j];
-			if (!has_hitbox(e1.type)) continue;
-			if (can_collide(e0.type, e1.type) && circle_intersect(e0.pos, e0.size, e1.pos, e1.size)) {
-				spawn_explosion(manager, e0.pos, random_between(3, 5));
-				//spawn small asteroids
-				if (e0.type == ASTEROID || e1.type == ASTEROID) {
-					if (e1.type == ASTEROID) e0 = e1;
-					if (e0.size > 0.06f) {
-						for (size_t i = 0; i < random_between(0, 2); i++) {
-							vec2 vel = vec2_from_ang(random_between(0, 628) / 100, 0.1f);
-							add_entity(manager, create_asteroid(e0.pos, vel, e0.size / 2));
-						}
-					}
-				}
-				destroy_entity(manager, i);
-				destroy_entity(manager, j);
-				i--;
-				break;
-			}
-		}
-	}
+	// TODO: split if size is bigger than 0.06
 }
 
 typedef enum side_e {
@@ -179,4 +169,15 @@ void spawn_asteroid(EntityManager* manager) {
 	}
 
 	add_entity(manager, create_asteroid(pos, vel, size));
+}
+
+
+i32 get_entity_idx(EntityManager manager, u32 id) {
+	for (size_t i = 0; i < manager.entity_amt; i++) {
+		// found player already in entity array
+		if (manager.entities[i].type == PLAYER || manager.entities[i].id == id) {
+			return i;
+		}
+	}
+	return -1;
 }

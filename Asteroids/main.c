@@ -1,34 +1,35 @@
+#include "util.h"
+#include "graphic.h"
+#include "entity.h"
+#include "client.h"
+
 #include <windows.h>
 #include <windowsx.h>
 #include <string.h>
 #include <tchar.h>
 
-#include "util.h"
-#include "graphic.h"
-#include "player.h"
-#include "entity.h"
+// Windows specific variables
+LRESULT CALLBACK WndProc(_In_ HWND, _In_ UINT, _In_ WPARAM, _In_ LPARAM);
 
-
-const TCHAR sz_window_class[] = _T("DesktopApp");
-const TCHAR sz_title[] = _T("Asteroids");
-const TCHAR error_string[] = _T("Call to RegisterClassEx failed!");
-
+static BITMAPINFO win32_bitmap_info;
 static HINSTANCE hInst;
 static HWND Wnd;
 
-LRESULT CALLBACK WndProc(_In_ HWND, _In_ UINT, _In_ WPARAM, _In_ LPARAM);
+static const TCHAR sz_window_class[] = _T("DesktopApp");
+static const TCHAR sz_title[] = _T("Asteroids");
+static const TCHAR error_string[] = _T("Call to RegisterClassEx failed!");
+
+typedef struct GameState_s {
+    bool running;
+    RenderBuffer render_buffer;
+    Client client;
+    EntityManager entity_man;
+
+    u64 last_time;
+}GameState;
 
 // Game specific variables
-static Render_Buffer render_buffer;
-static bool running = true;
-static Player player;
-static EntityManager entity_man;
-
-static u64 last_time;
-static u64 last_asteroid_spawn;
-
-// Windows specific variables
-static BITMAPINFO win32_bitmap_info;
+static GameState state = { .running = true };
 
 
 u64 get_milliseconds() {
@@ -47,51 +48,40 @@ u64 time_since(u64 last_time) {
 void init_render_buffer(HWND hWnd) {
     RECT rect;
     GetClientRect(hWnd, &rect);
-    render_buffer.width = rect.right - rect.left;
-    render_buffer.height = rect.bottom - rect.top;
+    state.render_buffer.width = rect.right - rect.left;
+    state.render_buffer.height = rect.bottom - rect.top;
 
-    if (render_buffer.pixels) {
-        VirtualFree(render_buffer.pixels, NULL, MEM_RELEASE);
+    if (state.render_buffer.pixels) {
+        VirtualFree(state.render_buffer.pixels, NULL, MEM_RELEASE);
     }
-    render_buffer.pixels = (u32*)VirtualAlloc(NULL, render_buffer.width * render_buffer.height * sizeof(u32), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    state.render_buffer.pixels = (u32*)VirtualAlloc(NULL, state.render_buffer.width * state.render_buffer.height * sizeof(u32), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
     win32_bitmap_info.bmiHeader.biSize = sizeof(win32_bitmap_info.bmiHeader);
-    win32_bitmap_info.bmiHeader.biWidth = render_buffer.width;
-    win32_bitmap_info.bmiHeader.biHeight = render_buffer.height;
+    win32_bitmap_info.bmiHeader.biWidth = state.render_buffer.width;
+    win32_bitmap_info.bmiHeader.biHeight = state.render_buffer.height;
     win32_bitmap_info.bmiHeader.biPlanes = 1;
     win32_bitmap_info.bmiHeader.biBitCount = 32;
     win32_bitmap_info.bmiHeader.biCompression = BI_RGB;
 }
 
 
-void tick() {
-    u64 delta_time = time_since(last_time);
-    last_time += delta_time;
-    if (delta_time >= 500) delta_time = 500;
-    // spawn asteroid every 5 seconds
-    last_asteroid_spawn += delta_time;
-    if(last_asteroid_spawn > 1000) {
-        spawn_asteroid(&entity_man);
-        last_asteroid_spawn = 0;
-    }
-    
-    // player tick
-    if (!player.dead) {
-        update_player(&player, delta_time, &entity_man);
-        player_collisions(&player, &entity_man);
-    }
+void tick_player(Player* p) {
+    u64 delta_time = time_since(state.last_time);
+    state.last_time += delta_time;
+    if (p->dead) { return; }
 
-    // entity tick
-    update_entities(&entity_man, delta_time);
-    entity_collisions(&entity_man);
+    while (delta_time >= 500) {
+        update_player(&state.client, 500, &state.entity_man);
+        delta_time -= 500;
+    }
+    update_player(&state.client, delta_time, &state.entity_man);
+    delta_time = 0;
 }
 
-void render() {
-    clear_screen(render_buffer, 0);
-    if (!player.dead) {
-        draw_player(render_buffer, player);
-    }
-    draw_entities(render_buffer, entity_man);
+void render(RenderBuffer rb, Player* p, EntityManager* man) {
+    clear_screen(rb, 0);
+    if (!p->dead) { draw_player(rb, *p); }
+    draw_entities(rb, *man);
 }
 
 
@@ -160,39 +150,46 @@ int init_window(_In_ HINSTANCE hInstance,
     init_render_buffer(hWnd);
 
     Wnd = hWnd;
-
 }
 
 
-int client_offline_main(_In_ HINSTANCE hInstance,
+int client_online_main(_In_ HINSTANCE hInstance,
                         _In_opt_ HINSTANCE hPrevInstance,
                         _In_ LPWSTR lpCmdLine,
                         _In_ int nShowCmd) {
-
+    // Initialize game window
     init_window(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+
+    // Try to connect to the server and send player state
+    bool success;
+    success = init_client(&state.client, "27015");
+    if (!success) {
+        // TODO exit or try again;
+    }   
 
     // Random numbers
     srand(time(NULL));
 
     // Timing
-    last_time = get_milliseconds();
+    state.last_time = get_milliseconds();
 
     // Game
-    player.pos = (vec2){ 1.77f / 2, 0.5f };
-    player.acceleration = 0.5f;
-    player.velocity = (vec2){ 0 };
-    player.ang = 0;
-    player.size = 0.004f;
-    player.dead = false;
-    player.mesh = create_player_mesh(player.size);
-
-    last_asteroid_spawn = 0;
+    Player* p = &state.client.player;
+    p->p.pos = (vec2){ 1.77f / 2, 0.5f };
+    p->acceleration = 0.5f;
+    p->p.vel = (vec2){ 0 };
+    p->p.ang = 0;
+    p->p.size = 0.004f;
+    p->dead = false;
+    p->p.mesh = create_player_mesh(p->p.size);
+    p->p.type = PLAYER;
 
     //TODO make memory allocation for entities dynamic
-    entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
+    state.entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
+    state.entity_man.entity_queue = (Entity*)malloc(100 * sizeof(Entity));
 
     // Main message loop
-    while (running) {
+    while (state.running) {
         //input
         MSG msg;
 
@@ -205,12 +202,12 @@ int client_offline_main(_In_ HINSTANCE hInstance,
                 bool is_down = ((msg.lParam >> 31) & 1) == 0;
 
                 switch (msg.wParam) {
-                case VK_LEFT: player.input.turn_left = is_down; break;
-                case VK_RIGHT: player.input.turn_right = is_down; break;
-                case VK_UP: player.input.accelerate = is_down; break;
+                case VK_LEFT:  p->input.turn_left = is_down; break;
+                case VK_RIGHT:  p->input.turn_right = is_down; break;
+                case VK_UP:  p->input.accelerate = is_down; break;
                 case VK_SPACE:
                     if (!was_down && is_down) {
-                        player.input.shoot = true;
+                        p->input.shoot = true;
                         break;
                     }
                 }
@@ -229,31 +226,26 @@ int client_offline_main(_In_ HINSTANCE hInstance,
             }
         }
 
+        // Get messages from the server
+        success = revieve_server_messages(&state.client, &state.entity_man);
+
         // Simulate
-        tick();
+        tick_player(p);
 
         // Render
-        render();
+        render(state.render_buffer, p, &state.entity_man);
         InvalidateRect(Wnd, NULL, FALSE);
+
+        // Send messages to server
+        success = send_player_state_to_server(&state.client);
     }
     return 0;
-
 }
 
 
-int client_online_main(_In_ HINSTANCE hInstance,
-                        _In_opt_ HINSTANCE hPrevInstance,
-                        _In_ LPWSTR lpCmdLine,
-                        _In_ int nShowCmd) {
-    init_window(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
-
-    // Random numbers
-    srand(time(NULL));
-
-    // Timing
-    last_time = get_milliseconds();
-
-
+bool init_network() {
+    WSADATA wsaData;
+    return !WSAStartup(MAKEWORD(2, 2), &wsaData);
 }
 
 /// <summary>
@@ -270,11 +262,12 @@ int WINAPI wWinMain(
     _In_ LPWSTR lpCmdLine,
     _In_ int nShowCmd) {
 
+    init_network();
+
     bool offline = false;
     int ret;
-
     if (offline) {
-        ret = client_offline_main(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+        //ret = client_offline_main(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
     }
     else {
         ret = client_online_main(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
@@ -300,9 +293,9 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM w_param,
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps); 
             StretchDIBits(hdc, 0, 0, 
-                render_buffer.width, render_buffer.height, 0, 0, 
-                render_buffer.width, render_buffer.height, 
-                render_buffer.pixels, &win32_bitmap_info, 
+                state.render_buffer.width, state.render_buffer.height, 0, 0,
+                state.render_buffer.width, state.render_buffer.height,
+                state.render_buffer.pixels, &win32_bitmap_info,
                 DIB_RGB_COLORS, SRCCOPY);
 
             EndPaint(hWnd, &ps);
@@ -313,7 +306,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM w_param,
         case WM_DESTROY:
         case WM_CLOSE: {
             PostQuitMessage(0);
-            running = false;
+            state.running = false;
             break;
         }
         default:

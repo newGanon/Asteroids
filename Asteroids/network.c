@@ -51,6 +51,11 @@ bool send_message(NetworkSocket* s, Message* msg) {
 		//TODO ERROR HANDLING;
 		return false;
 	}
+	//connection close
+	if (bs == 0) {
+		// TODO ERROR HANDLING
+		return false;
+	}
 	return true;
 }
 

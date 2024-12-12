@@ -6,8 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Asteroids", "Asteroids\Asteroids.vcxproj", "{54614AE5-AFF0-4481-A164-A935B5DC1119}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AsteroidServer", "AsteroidServer\AsteroidServer.vcxproj", "{E8C848E8-B37D-4C0C-966B-BA540FFDA5D8}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Client", "Client\Client.vcxproj", "{9F614418-3CD4-4842-82CD-A90CB671E16E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{54614AE5-AFF0-4481-A164-A935B5DC1119} = {54614AE5-AFF0-4481-A164-A935B5DC1119}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,14 +34,6 @@ Global
 		{E8C848E8-B37D-4C0C-966B-BA540FFDA5D8}.Release|x64.Build.0 = Release|x64
 		{E8C848E8-B37D-4C0C-966B-BA540FFDA5D8}.Release|x86.ActiveCfg = Release|Win32
 		{E8C848E8-B37D-4C0C-966B-BA540FFDA5D8}.Release|x86.Build.0 = Release|Win32
-		{9F614418-3CD4-4842-82CD-A90CB671E16E}.Debug|x64.ActiveCfg = Debug|x64
-		{9F614418-3CD4-4842-82CD-A90CB671E16E}.Debug|x64.Build.0 = Debug|x64
-		{9F614418-3CD4-4842-82CD-A90CB671E16E}.Debug|x86.ActiveCfg = Debug|Win32
-		{9F614418-3CD4-4842-82CD-A90CB671E16E}.Debug|x86.Build.0 = Debug|Win32
-		{9F614418-3CD4-4842-82CD-A90CB671E16E}.Release|x64.ActiveCfg = Release|x64
-		{9F614418-3CD4-4842-82CD-A90CB671E16E}.Release|x64.Build.0 = Release|x64
-		{9F614418-3CD4-4842-82CD-A90CB671E16E}.Release|x86.ActiveCfg = Release|Win32
-		{9F614418-3CD4-4842-82CD-A90CB671E16E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

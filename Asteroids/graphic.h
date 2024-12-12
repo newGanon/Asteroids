@@ -3,16 +3,16 @@
 #include "player.h"
 #include "entity.h"
 
-typedef struct Render_Buffer_s {
+typedef struct RenderBuffer_s {
     u32 width, height;
     u32* pixels;
-} Render_Buffer;
+} RenderBuffer;
 
-void clear_screen(Render_Buffer rb, u32 color);
+void clear_screen(RenderBuffer rb, u32 color);
 
 // Bresenham line algorithm
-void draw_line(Render_Buffer rb, ivec2 v0, ivec2 v1, u32 color); 
+void draw_line(RenderBuffer rb, ivec2 v0, ivec2 v1, u32 color); 
 
-void draw_player(Render_Buffer rb, Player player);
-void draw_entities(Render_Buffer rb, EntityManager manager);
+void draw_player(RenderBuffer rb, Player player);
+void draw_entities(RenderBuffer rb, EntityManager manager);
 
