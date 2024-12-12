@@ -4,7 +4,6 @@
 #include <stdio.h>
 
 #define DEFAULT_PORT "27015"
-#define DEFAULT_BUFLEN 512
 #define MAX_CLIENTS 4
 
 typedef struct ServerState_s {
@@ -37,18 +36,19 @@ bool init_server() {
 	if (getaddrinfo(NULL, DEFAULT_PORT, &hints, &result)) {
 		return false;
 	}
-	SOCKET s;
-	s = INVALID_SOCKET;
-	s = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-	if (s == INVALID_SOCKET) {
-		closesocket(s);
+	
+	SOCKET* s = &state.sockets.listen;
+	*s = INVALID_SOCKET;
+	*s = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+	if (*s == INVALID_SOCKET) {
+		closesocket(*s);
 		return false;
 	}
-	if (bind(s, result->ai_addr, (i32)result->ai_addrlen) != SOCKET_ERROR) {
-		if (listen(s, MAX_CLIENTS) != SOCKET_ERROR) {
+	if (bind(*s, result->ai_addr, (i32)result->ai_addrlen) != SOCKET_ERROR) {
+		if (listen(*s, MAX_CLIENTS) != SOCKET_ERROR) {
 			u_long mode = 1;
-			if (ioctlsocket(s, FIONBIO, &mode) != SOCKET_ERROR) {
-				state.sockets.listen = s;
+			if (ioctlsocket(*s, FIONBIO, &mode) != SOCKET_ERROR) {
+				state.sockets.listen = *s;
 				freeaddrinfo(result);
 				return true;
 			}
@@ -56,12 +56,13 @@ bool init_server() {
 	}
 	// failed, free everything
 	freeaddrinfo(result);
-	closesocket(s);
+	closesocket(*s);
 	return false;
 }
 
 bool accept_connection() { 
-	SOCKET s = accept(state.sockets.listen, NULL, NULL);
+	SOCKET s;
+	s = accept(state.sockets.listen, NULL, NULL);
 	if (s == INVALID_SOCKET) return false;
 	u_long mode = 1;
 	if (ioctlsocket(s, FIONBIO, &mode) == SOCKET_ERROR) {
@@ -69,8 +70,7 @@ bool accept_connection() {
 		s = INVALID_SOCKET;
 		return false;
 	}
-	state.sockets.connections[state.sockets.con_amt].sock = s;
-	state.sockets.con_amt++;
+	state.sockets.connections[state.sockets.con_amt++].sock = s;
 	return true;
 }
 
@@ -87,6 +87,7 @@ i32 get_player_idx(u32 id) {
 
 void handle_message_player_state(EntityManager* man, Message* msg, u32 id) {
 	Entity p = msg->p_state.player_ent;
+	p.id = id;
 
 	i32 idx = get_entity_idx(*man, id);
 	// player id not found, add player
@@ -131,7 +132,8 @@ bool send_entities_to_clients() {
 				.e_state.ent = *e,
 			};
 			for (size_t j = 0; j < state.sockets.con_amt; j++) {
-				if (j == e->id && e->type == PLAYER) continue;
+				if (j == e->id && e->type == PLAYER) 
+					continue;
 				bool succ = send_message(&state.sockets.connections[j], &msg);
 			}
 			if (e->despawn) { destroy_entity(man, i); }
@@ -164,13 +166,13 @@ i32 server_main() {
 	while (running) {
 		if (accept_connection()) printf("NEUER CLIENT\n");
 		for (u32 i = 0; i < state.sockets.con_amt; i++) {
-			if (state.sockets.listen != INVALID_SOCKET) {
+			if (state.sockets.connections[i].sock != INVALID_SOCKET) {
 				u64 delta_time = time_since(state.last_time);
 				state.last_time += delta_time;
 
 				Message msg;
 				// Recieve Messages
-				while (recieve_message(&state.sockets.connections[i], &msg)) {
+				if (recieve_message(&state.sockets.connections[i], &msg)) {
 					handle_message(&state.entity_manager, &msg, i);
 				}
 				// Update Entities

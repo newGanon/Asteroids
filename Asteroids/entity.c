@@ -175,7 +175,7 @@ void spawn_asteroid(EntityManager* manager) {
 i32 get_entity_idx(EntityManager manager, u32 id) {
 	for (size_t i = 0; i < manager.entity_amt; i++) {
 		// found player already in entity array
-		if (manager.entities[i].type == PLAYER || manager.entities[i].id == id) {
+		if (manager.entities[i].id == id) {
 			return i;
 		}
 	}
