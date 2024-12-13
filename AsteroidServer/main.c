@@ -16,6 +16,10 @@ typedef struct ServerState_s {
 
 ServerState state;
 
+
+void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg, i32 exclude_id);
+void handle_message_error(ServerSocket* s, EntityManager* man, i32 idx);
+ 
 bool init_network() {
 	WSADATA wsaData;
 	return !WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -60,9 +64,18 @@ bool init_server() {
 	return false;
 }
 
-bool accept_connection() { 
+i32 seach_empty_slot(ServerSocket* s) {
+	for (size_t i = 0; i < MAX_CLIENTS; i++) {
+		if (s->connections[i].sock == 0) {
+			return i;
+		}
+	}
+}
+
+bool accept_connection(ServerState* serv) { 
 	SOCKET s;
-	s = accept(state.sockets.listen, NULL, NULL);
+	if (serv->sockets.con_amt >= MAX_CLIENTS) return false;
+	s = accept(serv->sockets.listen, NULL, NULL);
 	if (s == INVALID_SOCKET) return false;
 	u_long mode = 1;
 	if (ioctlsocket(s, FIONBIO, &mode) == SOCKET_ERROR) {
@@ -70,7 +83,9 @@ bool accept_connection() {
 		s = INVALID_SOCKET;
 		return false;
 	}
-	state.sockets.connections[state.sockets.con_amt++].sock = s;
+	i32 empty_slot = seach_empty_slot(serv);
+	serv->sockets.connections[empty_slot].sock = s;
+	serv->sockets.con_amt++;
 	return true;
 }
 
@@ -117,25 +132,40 @@ void handle_message(EntityManager* man, Message* msg, u32 id) {
 	}
 }
 
+void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg, i32 exclude_id) {
+	for (i32 j = MAX_CLIENTS - 1; j >= 0; j--) {
+		if (s->connections[j].sock == 0 || j == exclude_id) continue;
+		message_status success = send_message(&s->connections[j], msg);
 
-bool send_entities_to_clients() {
-	EntityManager* man = &state.entity_manager;
-	for (size_t i = 0; i < man->entity_amt; i++) {
+		if (success == MESSAGE_ERROR) {
+			handle_message_error(s, man, j);
+			continue;
+		}
+	}
+}
+
+void handle_message_error(ServerSocket* s, EntityManager* man , i32 idx) {
+	s->con_amt--;
+	s->connections[idx] = (NetworkSocket){ 0 };
+	Entity* e = &man->entities[get_entity_idx(*man, idx)];
+	e->dirty = true;
+	e->despawn = true;
+}
+
+void send_entities_to_clients(ServerSocket* s, EntityManager* man) {
+	for (i32 i = man->entity_amt-1; i >= 0; i--) {
 		Entity* e = &man->entities[i];
 		if (e->dirty) {
 			e->dirty = false;
 			Message msg = {
 				.msg_header = {
 					.size = sizeof(MessageHeader) + sizeof(MessageEntityState),
-					.type = e->type,
+					.type = ENTITY_STATE,
 				},
 				.e_state.ent = *e,
 			};
-			for (size_t j = 0; j < state.sockets.con_amt; j++) {
-				if (j == e->id && e->type == PLAYER) 
-					continue;
-				bool succ = send_message(&state.sockets.connections[j], &msg);
-			}
+			// exclude e->id, as player entity id correspons to their socket idx
+			broadcast_message(s, man, &msg, e->id);
 			if (e->despawn) { destroy_entity(man, i); }
 		}
 	}
@@ -164,17 +194,24 @@ i32 server_main() {
 	bool running = true;
 
 	while (running) {
-		if (accept_connection()) printf("NEUER CLIENT\n");
-		for (u32 i = 0; i < state.sockets.con_amt; i++) {
-			if (state.sockets.connections[i].sock != INVALID_SOCKET) {
+		if (accept_connection(&state.sockets)) printf("NEUER CLIENT\n");
+		for (u32 i = 0; i < MAX_CLIENTS; i++) {
+			if (state.sockets.connections[i].sock != INVALID_SOCKET && state.sockets.connections[i].sock != 0) {
 				u64 delta_time = time_since(state.last_time);
 				state.last_time += delta_time;
 
 				Message msg;
+				message_status status;
 				// Recieve Messages
-				if (recieve_message(&state.sockets.connections[i], &msg)) {
-					handle_message(&state.entity_manager, &msg, i);
+				status = recieve_message(&state.sockets.connections[i], &msg);
+				switch (status) 
+				{
+				case MESSAGE_SUCCESS: handle_message(&state.entity_manager, &msg, i); break; 
+				case MESSAGE_EMPTY: break; 
+				case MESSAGE_ERROR: handle_message_error(&state.sockets, &state.entity_manager, i); break;
+				default: break;
 				}
+
 				// Update Entities
 				if (delta_time > 500) {
 					update_entities(&state.entity_manager, 500);
@@ -183,12 +220,11 @@ i32 server_main() {
 				}
 				update_entities(&state.entity_manager, delta_time);
 				entity_collisions(&state.entity_manager);
-
-
-				// Send Messages
-				send_entities_to_clients();
+				delta_time = 0;
 			}	
 		}
+		// Send Messages
+		send_entities_to_clients(&state.sockets, &state.entity_manager);
 	}
 	return 0;
 }

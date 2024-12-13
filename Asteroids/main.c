@@ -161,9 +161,7 @@ int client_online_main(_In_ HINSTANCE hInstance,
     init_window(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
 
     // Try to connect to the server and send player state
-    bool success;
-    success = init_client(&state.client, "27015");
-    if (!success) {
+    if (!init_client(&state.client, "27015")) {
         // TODO exit or try again;
     }   
 
@@ -187,6 +185,8 @@ int client_online_main(_In_ HINSTANCE hInstance,
     //TODO make memory allocation for entities dynamic
     state.entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
     state.entity_man.entity_queue = (Entity*)malloc(100 * sizeof(Entity));
+
+    bool success;
 
     // Main message loop
     while (state.running) {
@@ -227,7 +227,7 @@ int client_online_main(_In_ HINSTANCE hInstance,
         }
 
         // Get messages from the server
-        success = revieve_server_messages(&state.client, &state.entity_man);
+        if(!revieve_server_messages(&state.client, &state.entity_man)) return 1;
 
         // Simulate
         tick_player(p);
@@ -237,7 +237,7 @@ int client_online_main(_In_ HINSTANCE hInstance,
         InvalidateRect(Wnd, NULL, FALSE);
 
         // Send messages to server
-        success = send_player_state_to_server(&state.client);
+        if(!send_player_state_to_server(&state.client)) return 1;
     }
     return 0;
 }
@@ -272,6 +272,7 @@ int WINAPI wWinMain(
     else {
         ret = client_online_main(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
     }
+    return ret;
 }
 
 

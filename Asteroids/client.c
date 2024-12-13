@@ -19,8 +19,7 @@ bool init_client(Client* client, char* port) {
 	for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
 		*s = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
 		if (*s == INVALID_SOCKET) {
-			freeaddrinfo(result);
-			return 0;
+			continue;
 		}
 		if (connect(*s, ptr->ai_addr, (int)ptr->ai_addrlen) == SOCKET_ERROR) {
 			closesocket(*s);
@@ -51,13 +50,17 @@ bool send_player_state_to_server(Client* c) {
 		.p_state.shooting = c->player.input.shoot,
 	};
 	c->player.input.shoot = false;
-	return send_message(&c->socket.connection, &msg);
+	message_status st = send_message(&c->socket.connection, &msg);
+	if (st == MESSAGE_ERROR)
+		return false;
+	return true;
 }
 
 
 bool revieve_server_messages(Client* c, EntityManager* man) {
 	Message msg;
-	while (recieve_message(&c->socket.connection, &msg)) {
+	message_status st;
+	while (st = recieve_message(&c->socket.connection, &msg)) {
 		if (msg.msg_header.type == ENTITY_STATE) {
 			Entity e = msg.e_state.ent;
 			i32 idx = get_entity_idx(*man, e.id);
@@ -69,5 +72,7 @@ bool revieve_server_messages(Client* c, EntityManager* man) {
 			}
 		}
 	}
+	if (st == MESSAGE_ERROR)
+		return false;
 	return true;
 }

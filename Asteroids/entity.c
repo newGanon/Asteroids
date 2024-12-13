@@ -17,6 +17,18 @@ void overwrite_entity_idx(EntityManager* manager, Entity e, size idx) {
 	manager->entities[idx] = e;
 }
 
+
+i32 get_entity_idx(EntityManager manager, u32 id) {
+	for (size_t i = 0; i < manager.entity_amt; i++) {
+		// found player already in entity array
+		if (manager.entities[i].id == id) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+
 Entity create_asteroid(vec2 pos, vec2 vel, f32 size) {
 	return (Entity) {
 		.pos = pos,
@@ -169,15 +181,4 @@ void spawn_asteroid(EntityManager* manager) {
 	}
 
 	add_entity(manager, create_asteroid(pos, vel, size));
-}
-
-
-i32 get_entity_idx(EntityManager manager, u32 id) {
-	for (size_t i = 0; i < manager.entity_amt; i++) {
-		// found player already in entity array
-		if (manager.entities[i].id == id) {
-			return i;
-		}
-	}
-	return -1;
 }

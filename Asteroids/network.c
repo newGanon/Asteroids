@@ -1,65 +1,67 @@
 #include "network.h"
 
-
-bool get_message_from_buffer(u8* buffer, u32* bytes_used, Message* msg) {
+message_status get_message_from_buffer(u8* buffer, u32* bytes_used, Message* msg) {
 	if (*bytes_used < sizeof(MessageHeader)) {
-		return false;
+		return MESSAGE_EMPTY;
 	}
 	MessageHeader* head = (MessageHeader*) (buffer);
 
 	if (*bytes_used < head->size) {
-		return false;
+		return MESSAGE_EMPTY;
 	}
 	*bytes_used -= head->size;
 
 	memcpy(msg, buffer, head->size);
 	memcpy(buffer, buffer + head->size, *bytes_used);
-	return true;
+	return MESSAGE_SUCCESS;
 }
 
-
-bool recieve_message(NetworkSocket* s, Message* msg) {
+// returns: 1 if message has been read, 
+//			0 if there is no message in buffer,
+//			-1 if an error occured and socket should be closed 
+message_status recieve_message(NetworkSocket* s, Message* msg) {
 	int flags = 0;
 	int rc = recv(s->sock, &s->buffer[s->bytes_used], sizeof(Message) - s->bytes_used, flags);
 
 	if (rc == SOCKET_ERROR) {
 		int err = WSAGetLastError();
 		if (err == WSAEWOULDBLOCK) {
-			return false;
+			return MESSAGE_EMPTY;
 		}
-		//TODO ERROR HANDLING;
-		return false;
+		closesocket(s->sock);
+		return MESSAGE_ERROR;
 	}
 	//socket closed 
 	if (rc == 0) {
-		//TODO CLOSE CONNECTION
-		return false;
+		closesocket(s->sock);
+		return MESSAGE_ERROR;
 	}
 	s->bytes_used += rc;
 	return get_message_from_buffer(s->buffer, &s->bytes_used, msg);
 }
 
-bool send_message(NetworkSocket* s, Message* msg) {
+
+// returns: 1 if message has been read, 
+//			0 if there is no message in buffer,
+//			-1 if an error occured and socket should be closed 
+message_status send_message(NetworkSocket* s, Message* msg) {
 	int flags = 0;
 	int bs = send(s->sock, (char *)msg, msg->msg_header.size, flags);
 
 	if (bs == SOCKET_ERROR) {
-		if (WSAGetLastError() == WSAEWOULDBLOCK) {
+		i32 err = WSAGetLastError();
+		if (err == WSAEWOULDBLOCK) {
 			// Package thrown away, maybe save a few and then send them all if not blocking anymore
-			return false;
+			return MESSAGE_EMPTY;
 		}
-		//TODO ERROR HANDLING;
-		return false;
+		return MESSAGE_ERROR;
 	}
 	//connection close
 	if (bs == 0) {
-		// TODO ERROR HANDLING
-		return false;
+		return MESSAGE_ERROR;
 	}
 	return true;
 }
-
-
 
 void clean_up() {
 	WSACleanup();

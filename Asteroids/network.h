@@ -8,6 +8,14 @@
 
 #define MAX_SERVER_SOCKETS 4
 
+typedef enum message_status_e {
+	MESSAGE_ERROR = -1,
+	MESSAGE_EMPTY = 0,
+	MESSAGE_SUCCESS = 1,
+} message_status;
+
+
+
 typedef struct NetworkSocket_s {
 	SOCKET sock;
 
@@ -26,5 +34,6 @@ typedef struct ServerSocket_s {
 }ServerSocket;
 
 
-bool recieve_message(NetworkSocket* s, Message* msg);
-bool send_message(NetworkSocket* s, Message* msg);
+
+message_status recieve_message(NetworkSocket* s, Message* msg);
+message_status send_message(NetworkSocket* s, Message* msg);
