@@ -53,7 +53,8 @@ Entity create_asteroid(vec2 pos, vec2 vel, f32 size);
 Entity create_bullet(vec2 pos, vec2 vel, f32 size);
 Entity create_particle_round(vec2 pos, vec2 vel, f32 size, i32 lifetime);
 
-WireframeMesh create_asteroid_mesh(f32 size);
+WireframeMesh create_entity_mesh(entity_type t, f32 size);
+
 
 void destroy_entity(EntityManager* manager, i32 idx);
 

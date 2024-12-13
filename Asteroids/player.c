@@ -30,19 +30,6 @@ void update_player(Player* player, u64 delta_time, EntityManager* manager) {
 	if (p->pos.y < 0.0f) p->pos.y += 1.0f;
 }
 
-
-WireframeMesh create_player_mesh(f32 size) {
-	WireframeMesh m;
-	m.point_amt = 4;
-	m.points = (vec2*)malloc(m.point_amt * sizeof(vec2));
-	m.points[0] = (vec2){ -5.0f * size, 5.0f * size };
-	m.points[1] = (vec2){ 8.0f * size, 0 * size };
-	m.points[2] = (vec2){ -5.0f * size, -5.0f * size };
-	m.points[3] = (vec2){ -2.0f * size, 0 * size };
-	return m;
-}
-
-
 void player_collisions(Player* player, EntityManager* manager) {
 	Entity* p = &player->p;
 	for (i32 i = manager->entity_amt-1; i >= 0; i--) {

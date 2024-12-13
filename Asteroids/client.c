@@ -65,10 +65,16 @@ bool revieve_server_messages(Client* c, EntityManager* man) {
 			Entity e = msg.e_state.ent;
 			i32 idx = get_entity_idx(*man, e.id);
 			if (idx == -1) { 
-				add_entity(man, msg.e_state.ent); }
+				add_entity(man, msg.e_state.ent); 
+				man->entities[man->entity_amt - 1].mesh = create_entity_mesh(e.type, e.size);
+			}
 			else { 
-				if (e.despawn) { destroy_entity(man, idx); }
-				else { overwrite_entity_idx(man, e, idx);}
+				if (e.despawn) { remove_entity(man, idx); }
+				else { 
+					// HACK!!! TODO: SAFE MESH IN SOMEWHERE ELSE 
+					e.mesh = man->entities[idx].mesh;
+					overwrite_entity_idx(man, e, idx);
+				}
 			}
 		}
 	}

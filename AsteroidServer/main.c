@@ -166,7 +166,7 @@ void send_entities_to_clients(ServerSocket* s, EntityManager* man) {
 			};
 			// exclude e->id, as player entity id correspons to their socket idx
 			broadcast_message(s, man, &msg, e->id);
-			if (e->despawn) { destroy_entity(man, i); }
+			if (e->despawn) { remove_entity(man, i); }
 		}
 	}
 }
@@ -189,6 +189,7 @@ i32 server_main() {
 	state = (ServerState){ 0 };
 	state.entity_manager.entities = (Entity*)malloc(1000 * sizeof(Entity));
 	state.last_time = get_milliseconds();
+	state.last_asteroid_spawn = 0;
 	if (!init_network()) return 1;
 	if (!init_server()) return 1;
 	bool running = true;
@@ -199,6 +200,7 @@ i32 server_main() {
 			if (state.sockets.connections[i].sock != INVALID_SOCKET && state.sockets.connections[i].sock != 0) {
 				u64 delta_time = time_since(state.last_time);
 				state.last_time += delta_time;
+				state.last_asteroid_spawn += delta_time;
 
 				Message msg;
 				message_status status;
@@ -213,7 +215,7 @@ i32 server_main() {
 				}
 
 				// Update Entities
-				if (delta_time > 500) {
+				while (delta_time > 500) {
 					update_entities(&state.entity_manager, 500);
 					entity_collisions(&state.entity_manager);
 					delta_time -= 500;
@@ -221,6 +223,13 @@ i32 server_main() {
 				update_entities(&state.entity_manager, delta_time);
 				entity_collisions(&state.entity_manager);
 				delta_time = 0;
+
+
+				if (state.last_asteroid_spawn > 2000) {
+					spawn_asteroid(&state.entity_manager);
+					state.last_asteroid_spawn = 0;
+				}
+
 			}	
 		}
 		// Send Messages

@@ -179,7 +179,7 @@ int client_online_main(_In_ HINSTANCE hInstance,
     p->p.ang = 0;
     p->p.size = 0.004f;
     p->dead = false;
-    p->p.mesh = create_player_mesh(p->p.size);
+    p->p.mesh = create_entity_mesh(PLAYER, p->p.size);
     p->p.type = PLAYER;
 
     //TODO make memory allocation for entities dynamic

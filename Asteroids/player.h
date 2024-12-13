@@ -23,4 +23,3 @@ typedef struct Player_s {
 
 void update_player(Player* player, u64 delta_time, EntityManager* manager);
 void player_collisions(Player* player, EntityManager* manager);
-WireframeMesh create_player_mesh(f32 size);

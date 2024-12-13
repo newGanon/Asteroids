@@ -35,7 +35,7 @@ Entity create_asteroid(vec2 pos, vec2 vel, f32 size) {
 		.vel = vel,
 		.type = ASTEROID,
 		.size = size,
-		.mesh = create_asteroid_mesh(size),
+		.mesh = 0,
 		.dirty = true,
 		.id = id++,
 	};	
@@ -64,23 +64,36 @@ Entity create_bullet(vec2 pos, vec2 vel, f32 size) {
 	};
 }
 
-WireframeMesh create_asteroid_mesh(f32 size) {
-	WireframeMesh m;
-	m.point_amt = 6;
-	m.points = (vec2*)malloc(m.point_amt * sizeof(vec2));
 
-	for (size_t i = 0; i < 6; i++){
-		m.points[i] = vec2_from_ang((PI_2 * (2.0f/3.0f)) * i, size);
+WireframeMesh create_entity_mesh(entity_type t, f32 size) {
+	WireframeMesh m = {0};
+	switch (t)
+	{
+	case PLAYER: {
+		m.point_amt = 4;
+		m.points = (vec2*)malloc(m.point_amt * sizeof(vec2));
+		m.points[0] = (vec2){ -5.0f * size, 5.0f * size };
+		m.points[1] = (vec2){ 8.0f * size, 0 * size };
+		m.points[2] = (vec2){ -5.0f * size, -5.0f * size };
+		m.points[3] = (vec2){ -2.0f * size, 0 * size };
+		break;
 	}
+	case ASTEROID: {
+		m.point_amt = 6;
+		m.points = (vec2*)malloc(m.point_amt * sizeof(vec2));
+		for (size_t i = 0; i < 6; i++) {
+			m.points[i] = vec2_from_ang((PI_2 * (2.0f / 3.0f)) * i, size);
+		}
+	}
+	default: break;
+	}
+
 	return m;
+	
 }
 
 bool has_mesh(entity_type t) {
-	return t == ASTEROID;
-}
-
-bool can_collide(entity_type t0, entity_type t1) {
-	return (t0 == ASTEROID && t1 == BULLET || t0 == BULLET && t1 == ASTEROID);
+	return t == ASTEROID || t == PLAYER;
 }
 
 bool has_hitbox(entity_type t) {
@@ -176,8 +189,7 @@ void spawn_asteroid(EntityManager* manager) {
 			vel = vec2_from_ang(random_between(235 + angle_const, 393 - angle_const) / 100.0f, speed);
 			break;
 		}
-		default:
-			return;
+		default: return;
 	}
 
 	add_entity(manager, create_asteroid(pos, vel, size));

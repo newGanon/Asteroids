@@ -113,9 +113,11 @@ void draw_entities(RenderBuffer rb, EntityManager manager) {
                 break;
             }
             case PLAYER: {
-                ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, rb.height, rb.width);
-                ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, rb.height, rb.width);
-                draw_rectangle(rb, p0, p1);
+                //ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, rb.height, rb.width);
+                //ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, rb.height, rb.width);
+                //draw_rectangle(rb, p0, p1);
+
+                draw_mesh(rb, e.mesh, e.pos, e.ang);
             }
             default:
                 break;
