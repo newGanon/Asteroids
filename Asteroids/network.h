@@ -27,9 +27,14 @@ typedef struct ClientSocket_s {
 	NetworkSocket connection;
 }ClientSocket;
 
+typedef struct PlayerStatus_s {
+	bool dead;
+}PlayerStatus;
+
 typedef struct ServerSocket_s {
 	SOCKET listen;
 	NetworkSocket connections[MAX_SERVER_SOCKETS];
+	PlayerStatus player_status[MAX_SERVER_SOCKETS];
 	size con_amt;
 }ServerSocket;
 

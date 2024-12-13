@@ -84,6 +84,7 @@ bool accept_connection(ServerState* serv) {
 		return false;
 	}
 	i32 empty_slot = seach_empty_slot(serv);
+	serv->sockets.player_status[empty_slot].dead = false;
 	serv->sockets.connections[empty_slot].sock = s;
 	serv->sockets.con_amt++;
 	return true;
@@ -100,8 +101,10 @@ i32 get_player_idx(u32 id) {
 }
 
 
-void handle_message_player_state(EntityManager* man, Message* msg, u32 id) {
+void handle_message_player_state(ServerSocket* s, EntityManager* man, Message* msg, u32 id) {
+	if (s->player_status[id].dead) return;
 	Entity p = msg->p_state.player_ent;
+	p.dirty = true;
 	p.id = id;
 
 	i32 idx = get_entity_idx(*man, id);
@@ -112,7 +115,6 @@ void handle_message_player_state(EntityManager* man, Message* msg, u32 id) {
 	// player id found, update player
 	else {
 		overwrite_entity_idx(man, p, idx);
-		man->entities[idx].dirty = true;
 	}
 	// check if player is shooting
 	if (msg->p_state.shooting) {
@@ -123,24 +125,23 @@ void handle_message_player_state(EntityManager* man, Message* msg, u32 id) {
 }
 
 
-void handle_message(EntityManager* man, Message* msg, u32 id) {
+void handle_message(ServerSocket* s, EntityManager* man, Message* msg, u32 id) {
 	switch (msg->msg_header.type)
 	{
-	case PLAYER_STATE: { handle_message_player_state(man, msg, id); break; }
-	default:
-		break;
+	case PLAYER_STATE: handle_message_player_state(s, man, msg, id); break; 
+	default: break;
 	}
+}
+
+void message_to_player(ServerSocket* s, EntityManager* man, Message* msg, i32 idx, i32 exclude_id) {
+	if (s->connections[idx].sock == 0 || idx == exclude_id) return;
+	message_status success = send_message(&s->connections[idx], msg);
+	if (success == MESSAGE_ERROR) handle_message_error(s, man, idx);
 }
 
 void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg, i32 exclude_id) {
 	for (i32 j = MAX_CLIENTS - 1; j >= 0; j--) {
-		if (s->connections[j].sock == 0 || j == exclude_id) continue;
-		message_status success = send_message(&s->connections[j], msg);
-
-		if (success == MESSAGE_ERROR) {
-			handle_message_error(s, man, j);
-			continue;
-		}
+		message_to_player(s, man, msg, j, exclude_id);
 	}
 }
 
@@ -153,20 +154,37 @@ void handle_message_error(ServerSocket* s, EntityManager* man , i32 idx) {
 }
 
 void send_entities_to_clients(ServerSocket* s, EntityManager* man) {
+	Message msg;
 	for (i32 i = man->entity_amt-1; i >= 0; i--) {
 		Entity* e = &man->entities[i];
 		if (e->dirty) {
 			e->dirty = false;
-			Message msg = {
+			msg = (Message){
 				.msg_header = {
 					.size = sizeof(MessageHeader) + sizeof(MessageEntityState),
 					.type = ENTITY_STATE,
 				},
 				.e_state.ent = *e,
 			};
-			// exclude e->id, as player entity id correspons to their socket idx
+			// Exclude e->id, as player entity id correspons to their socket idx
 			broadcast_message(s, man, &msg, e->id);
-			if (e->despawn) { remove_entity(man, i); }
+
+			// If player despawn is true and player still connected then send them a death message
+			if (e->despawn) {
+				if (e->type == PLAYER) {
+					msg = (Message){
+						.msg_header = {
+							.size = sizeof(MessageHeader) + sizeof(MessagePlayerState),
+							.type = PLAYER_STATE
+						},
+						.p_state.player_ent = *e,
+						.p_state.dead = true,
+					};
+					message_to_player(s, man, &msg, e->id, -1);
+					s->player_status[e->id].dead = true;
+				}
+				remove_entity(man, i);
+			}
 		}
 	}
 }
@@ -208,7 +226,7 @@ i32 server_main() {
 				status = recieve_message(&state.sockets.connections[i], &msg);
 				switch (status) 
 				{
-				case MESSAGE_SUCCESS: handle_message(&state.entity_manager, &msg, i); break; 
+				case MESSAGE_SUCCESS: handle_message(&state.sockets, &state.entity_manager, &msg, i); break; 
 				case MESSAGE_EMPTY: break; 
 				case MESSAGE_ERROR: handle_message_error(&state.sockets, &state.entity_manager, i); break;
 				default: break;
@@ -223,7 +241,6 @@ i32 server_main() {
 				update_entities(&state.entity_manager, delta_time);
 				entity_collisions(&state.entity_manager);
 				delta_time = 0;
-
 
 				if (state.last_asteroid_spawn > 2000) {
 					spawn_asteroid(&state.entity_manager);

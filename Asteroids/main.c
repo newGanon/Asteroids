@@ -237,7 +237,7 @@ int client_online_main(_In_ HINSTANCE hInstance,
         InvalidateRect(Wnd, NULL, FALSE);
 
         // Send messages to server
-        if(!send_player_state_to_server(&state.client)) return 1;
+        if(!p->dead && !send_player_state_to_server(&state.client)) return 1;
     }
     return 0;
 }

@@ -61,21 +61,31 @@ bool revieve_server_messages(Client* c, EntityManager* man) {
 	Message msg;
 	message_status st;
 	while (st = recieve_message(&c->socket.connection, &msg)) {
-		if (msg.msg_header.type == ENTITY_STATE) {
+		switch (msg.msg_header.type)
+		{
+		case ENTITY_STATE: {
 			Entity e = msg.e_state.ent;
 			i32 idx = get_entity_idx(*man, e.id);
-			if (idx == -1) { 
-				add_entity(man, msg.e_state.ent); 
+			if (idx == -1) {
+				add_entity(man, msg.e_state.ent);
 				man->entities[man->entity_amt - 1].mesh = create_entity_mesh(e.type, e.size);
 			}
-			else { 
+			else {
 				if (e.despawn) { remove_entity(man, idx); }
-				else { 
-					// HACK!!! TODO: SAFE MESH IN SOMEWHERE ELSE 
+				else {
+					// HACK!!! TODO: SAFE MESH SOMEWHERE ELSE 
 					e.mesh = man->entities[idx].mesh;
 					overwrite_entity_idx(man, e, idx);
 				}
 			}
+			break;
+		}
+		case PLAYER_STATE: {
+			Entity e = msg.p_state.player_ent;
+			c->player.p = e;
+			c->player.dead = msg.p_state.dead;
+		}
+		default: break;
 		}
 	}
 	if (st == MESSAGE_ERROR)

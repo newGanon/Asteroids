@@ -10,6 +10,7 @@ typedef enum message_type_e {
 typedef struct MessagePlayerState_s {
 	Entity player_ent;
 	bool shooting;
+	bool dead;
 } MessagePlayerState;
 
 typedef struct MessageEntityState_s {

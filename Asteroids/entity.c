@@ -148,6 +148,42 @@ void spawn_explosion(EntityManager* manager, vec2 pos, size amt) {
 }
 
 void entity_collisions(EntityManager* manager) {
+	for (size_t i = 0; i < manager->entity_amt; i++) {
+		Entity* e1 = &manager->entities[i];
+		for (size_t j = 0; j < manager->entity_amt; j++) {
+			Entity* e2 = &manager->entities[j];
+			switch (e1->type)
+			{
+			case ASTEROID: {
+				switch (e2->type)
+				{
+				case ASTEROID: break;
+				case BULLET: {
+					if (circle_intersect(e1->pos, e1->size, e2->pos, e2->size)) {
+						e1->dirty = true;
+						e1->despawn = true;
+						e2->dirty = true;
+						e2->despawn = true;
+					}
+					break;
+				}
+				case PLAYER: {
+					if (circle_intersect(e1->pos, e1->size, e2->pos, e2->size * 3.0f)) {
+						e2->dirty = true;
+						e2->despawn = true;
+					}
+					break;
+				}
+				default: break;
+				}
+				break;
+			}
+			case BULLET: break;
+			case PLAYER: break; 
+			default: break;
+			}
+		}
+	}
 	// TODO: split if size is bigger than 0.06
 }
 
