@@ -34,17 +34,14 @@ typedef struct Entity_s {
 typedef struct EntityManager_s {
 	Entity* entities;
 	size entity_amt;
-	// Queue contains entities that are newly created and have to be send to the other network members
-	Entity* entity_queue;
-	size entity_queue_amt;
 }EntityManager;
 
 void add_entity(EntityManager* manager, Entity e);
 void remove_entity(EntityManager* manager, size idx);
 void overwrite_entity_idx(EntityManager* manager, Entity e, size idx);
 
-void update_entities(EntityManager* manager, u32 delta_time);
-void entity_collisions(EntityManager* manager);
+void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_time);
+void entity_collisions(EntityManager* manager, EntityManager* queue);
 
 void spawn_asteroid(EntityManager* manager);
 void spawn_explosion(EntityManager* manager, vec2 pos, size amt);

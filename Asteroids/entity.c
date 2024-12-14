@@ -112,7 +112,7 @@ void destroy_entity(EntityManager* manager, i32 idx) {
 	}
 }
 
-void update_entities(EntityManager* manager, u32 delta_time) {
+void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_time) {
 	// Update movement
 	f32 dt = delta_time / 1000.0f;
 	for (i32 i = 0; i < manager->entity_amt; i++) {
@@ -134,6 +134,13 @@ void update_entities(EntityManager* manager, u32 delta_time) {
 			e->despawn = true;
 		}
 	}
+	// add queued entities to main entity manager
+	for (size_t i = 0; i < queue->entity_amt; i++) {
+		add_entity(manager, queue->entities[i]);
+		queue->entities[i] = (Entity){0};
+	}
+	queue->entity_amt = 0;
+
 }
 
 
@@ -147,7 +154,7 @@ void spawn_explosion(EntityManager* manager, vec2 pos, size amt) {
 	}
 }
 
-void entity_collisions(EntityManager* manager) {
+void entity_collisions(EntityManager* manager, EntityManager* queue) {
 	for (size_t i = 0; i < manager->entity_amt; i++) {
 		Entity* e1 = &manager->entities[i];
 		for (size_t j = 0; j < manager->entity_amt; j++) {
@@ -164,6 +171,14 @@ void entity_collisions(EntityManager* manager) {
 						e1->despawn = true;
 						e2->dirty = true;
 						e2->despawn = true;
+						if (e1->size > 0.05f) {
+							for (size_t i = 0; i < 2; i++) {
+								f32 speed = vec2_length(e1->vel);
+								f32 angle = random_between(0, 6283) / 1000.0f;
+								Entity e = create_asteroid(e1->pos, vec2_from_ang(angle, speed * 1.5f), e1->size / 2.0f);
+								add_entity(queue, e);
+							}
+						}
 					}
 					break;
 				}

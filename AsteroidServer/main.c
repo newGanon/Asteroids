@@ -9,6 +9,7 @@
 typedef struct ServerState_s {
 	ServerSocket sockets;
 	EntityManager entity_manager;
+	EntityManager entity_queue;
 
 	u64 last_time;
 	u64 last_asteroid_spawn;
@@ -205,7 +206,9 @@ u64 time_since(u64 last_time) {
 
 i32 server_main() {
 	state = (ServerState){ 0 };
+	// TODO: make entity_manager dynamic
 	state.entity_manager.entities = (Entity*)malloc(1000 * sizeof(Entity));
+	state.entity_queue.entities = (Entity*)malloc(1000 * sizeof(Entity));
 	state.last_time = get_milliseconds();
 	state.last_asteroid_spawn = 0;
 	if (!init_network()) return 1;
@@ -214,12 +217,11 @@ i32 server_main() {
 
 	while (running) {
 		if (accept_connection(&state.sockets)) printf("NEUER CLIENT\n");
+		u64 delta_time = time_since(state.last_time);
+		state.last_time += delta_time;
+		state.last_asteroid_spawn += delta_time;
 		for (u32 i = 0; i < MAX_CLIENTS; i++) {
 			if (state.sockets.connections[i].sock != INVALID_SOCKET && state.sockets.connections[i].sock != 0) {
-				u64 delta_time = time_since(state.last_time);
-				state.last_time += delta_time;
-				state.last_asteroid_spawn += delta_time;
-
 				Message msg;
 				message_status status;
 				// Recieve Messages
@@ -231,24 +233,24 @@ i32 server_main() {
 				case MESSAGE_ERROR: handle_message_error(&state.sockets, &state.entity_manager, i); break;
 				default: break;
 				}
-
-				// Update Entities
-				while (delta_time > 500) {
-					update_entities(&state.entity_manager, 500);
-					entity_collisions(&state.entity_manager);
-					delta_time -= 500;
-				}
-				update_entities(&state.entity_manager, delta_time);
-				entity_collisions(&state.entity_manager);
-				delta_time = 0;
-
-				if (state.last_asteroid_spawn > 2000) {
-					spawn_asteroid(&state.entity_manager);
-					state.last_asteroid_spawn = 0;
-				}
-
 			}	
 		}
+
+		// Update Entities
+		while (delta_time > 500) {
+			update_entities(&state.entity_manager, &state.entity_queue, 500);
+			entity_collisions(&state.entity_manager, &state.entity_queue);
+			delta_time -= 500;
+		}
+		update_entities(&state.entity_manager, &state.entity_queue, delta_time);
+		entity_collisions(&state.entity_manager, &state.entity_queue);
+		delta_time = 0;
+
+		if (state.last_asteroid_spawn > 2000) {
+			spawn_asteroid(&state.entity_manager);
+			state.last_asteroid_spawn = 0;
+		}
+
 		// Send Messages
 		send_entities_to_clients(&state.sockets, &state.entity_manager);
 	}

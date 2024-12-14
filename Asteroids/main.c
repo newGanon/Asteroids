@@ -184,7 +184,6 @@ int client_online_main(_In_ HINSTANCE hInstance,
 
     //TODO make memory allocation for entities dynamic
     state.entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
-    state.entity_man.entity_queue = (Entity*)malloc(100 * sizeof(Entity));
 
     bool success;
 
