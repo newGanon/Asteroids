@@ -5,6 +5,8 @@
 
 #define DEFAULT_PORT "27015"
 #define MAX_CLIENTS 4
+#define TIMEPERUPDATE 1000/100
+#define ASTEROIDSPAWNTIME 1000
 
 typedef struct ServerState_s {
 	ServerSocket sockets;
@@ -12,7 +14,7 @@ typedef struct ServerState_s {
 	EntityManager entity_queue;
 
 	u64 last_time;
-	u64 last_asteroid_spawn;
+	i32 last_asteroid_spawn;
 } ServerState;
 
 ServerState state;
@@ -183,10 +185,17 @@ void send_entities_to_clients(ServerSocket* s, EntityManager* man) {
 					};
 					message_to_player(s, man, &msg, e->id, -1);
 					s->player_status[e->id].dead = true;
+					s->player_status->dead_timer = 0;
 				}
 				remove_entity(man, i);
 			}
 		}
+	}
+}
+
+send_revive_messages(ServerSocket* s) {
+	for (size_t i = 0; i < MAX_CLIENTS; i++) {
+
 	}
 }
 
@@ -204,6 +213,21 @@ u64 time_since(u64 last_time) {
 	return now - last_time;
 }
 
+void update_tickers(ServerState* s, u64 delta_time) {
+	// update last update counter
+	s->last_time += delta_time;
+	// update asteroid spawn timer
+	s->last_asteroid_spawn += delta_time;
+	// update player death timers
+	for (size_t i = 0; i < MAX_CLIENTS; i++) {
+		PlayerStatus* status = &s->sockets.connections[i];
+		if (s->sockets.connections[i].sock != 0 && status->dead) {
+			status->dead_timer += delta_time;
+		}
+	}
+}
+
+
 i32 server_main() {
 	state = (ServerState){ 0 };
 	// TODO: make entity_manager dynamic
@@ -220,9 +244,6 @@ i32 server_main() {
 
 	while (running) {
 		if (accept_connection(&state.sockets)) printf("NEUER CLIENT\n");
-		u64 delta_time = time_since(state.last_time);
-		state.last_time += delta_time;
-		state.last_asteroid_spawn += delta_time;
 		for (u32 i = 0; i < MAX_CLIENTS; i++) {
 			if (state.sockets.connections[i].sock != INVALID_SOCKET && state.sockets.connections[i].sock != 0) {
 				Message msg;
@@ -239,23 +260,24 @@ i32 server_main() {
 			}	
 		}
 
-		// Update Entities
-		while (delta_time > 500) {
-			update_entities(&state.entity_manager, &state.entity_queue, 500, map_size);
+		// Update Server
+		u64 delta_time = time_since(state.last_time);
+		while (delta_time >= TIMEPERUPDATE) {
+			delta_time -= TIMEPERUPDATE;
+			update_tickers(&state, TIMEPERUPDATE);
+			update_entities(&state.entity_manager, &state.entity_queue, TIMEPERUPDATE, map_size);
 			entity_collisions(&state.entity_manager, &state.entity_queue);
-			delta_time -= 500;
 		}
-		update_entities(&state.entity_manager, &state.entity_queue, delta_time, map_size);
-		entity_collisions(&state.entity_manager, &state.entity_queue);
-		delta_time = 0;
 
-		if (state.last_asteroid_spawn > 2000) {
+
+		if (state.last_asteroid_spawn > ASTEROIDSPAWNTIME) {
 			spawn_asteroid(&state.entity_manager, map_size);
 			state.last_asteroid_spawn = 0;
 		}
 
 		// Send Messages
 		send_entities_to_clients(&state.sockets, &state.entity_manager);
+		send_revive_messages(&state.sockets);
 	}
 	return 0;
 }

@@ -29,6 +29,7 @@ typedef struct ClientSocket_s {
 
 typedef struct PlayerStatus_s {
 	bool dead;
+	u64 dead_timer;
 }PlayerStatus;
 
 typedef struct ServerSocket_s {

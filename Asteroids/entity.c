@@ -145,7 +145,6 @@ void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_tim
 		queue->entities[i] = (Entity){0};
 	}
 	queue->entity_amt = 0;
-
 }
 
 
@@ -234,42 +233,11 @@ void spawn_asteroid(EntityManager* manager, f32 map_size) {
 	// try spawning a asteroid 100 times before giving up
 	bool found = false;
 	for (size_t i = 0; i < 100; i++) {
-		pos = (vec2){ -(random_between(0, 50000) / 50000.0f) * map_size,  -(random_between(0, 50000) / (50000.0f)) * map_size };
+		pos = (vec2){ (random_between(-5000, 5000) / 5000.0f) * map_size,  (random_between(-5000, 5000) / (5000.0f)) * map_size };
 		if (try_spawn_asteroid(manager, map_size, pos, size)) {
 			found = true;
 			break;
 		}
 	}
 	if(found) add_entity(manager, create_asteroid(pos, vel, size));
-
-	/*
-	f32 angle_const = 78 * 0.3f;
-	side s = random_between(0, 3);
-	switch (s)
-	{
-		case TOP: {
-			pos = (vec2){ random_between(0, 177) / 100.0f , 1.0f + 0.2f };
-			vel = vec2_from_ang(random_between(393 + angle_const, 550 - angle_const) / 100.0f, speed);
-			break;
-		}
-		case BOTTOM: {
-			pos = (vec2){ random_between(0, 177) / 100.0f , - 0.2f };
-			vel = vec2_from_ang(random_between(78 + angle_const, 235 - angle_const) / 100.0f, speed);
-			break;
-		}
-		case LEFT: {
-			pos = (vec2){ -0.2f , random_between(0, 100) / 100.0f };
-			vel = vec2_from_ang(random_between(550 + angle_const, 707 - angle_const) / 100.0f, speed);
-			break;
-		}
-		case RIGHT: {
-			pos = (vec2){ 1.77f +0.2f , random_between(0, 100) / 100.0f };
-			vel = vec2_from_ang(random_between(235 + angle_const, 393 - angle_const) / 100.0f, speed);
-			break;
-		}
-		default: return;
-	}
-
-	add_entity(manager, create_asteroid(pos, vel, size));
-	*/
 }
