@@ -40,10 +40,10 @@ void add_entity(EntityManager* manager, Entity e);
 void remove_entity(EntityManager* manager, size idx);
 void overwrite_entity_idx(EntityManager* manager, Entity e, size idx);
 
-void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_time);
+void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_time, f32 map_size);
 void entity_collisions(EntityManager* manager, EntityManager* queue);
 
-void spawn_asteroid(EntityManager* manager);
+void spawn_asteroid(EntityManager* manager, f32 map_size);
 void spawn_explosion(EntityManager* manager, vec2 pos, size amt);
 
 Entity create_asteroid(vec2 pos, vec2 vel, f32 size);

@@ -211,6 +211,9 @@ i32 server_main() {
 	state.entity_queue.entities = (Entity*)malloc(1000 * sizeof(Entity));
 	state.last_time = get_milliseconds();
 	state.last_asteroid_spawn = 0;
+
+	f32 map_size = 2.0f;
+
 	if (!init_network()) return 1;
 	if (!init_server()) return 1;
 	bool running = true;
@@ -238,16 +241,16 @@ i32 server_main() {
 
 		// Update Entities
 		while (delta_time > 500) {
-			update_entities(&state.entity_manager, &state.entity_queue, 500);
+			update_entities(&state.entity_manager, &state.entity_queue, 500, map_size);
 			entity_collisions(&state.entity_manager, &state.entity_queue);
 			delta_time -= 500;
 		}
-		update_entities(&state.entity_manager, &state.entity_queue, delta_time);
+		update_entities(&state.entity_manager, &state.entity_queue, delta_time, map_size);
 		entity_collisions(&state.entity_manager, &state.entity_queue);
 		delta_time = 0;
 
 		if (state.last_asteroid_spawn > 2000) {
-			spawn_asteroid(&state.entity_manager);
+			spawn_asteroid(&state.entity_manager, map_size);
 			state.last_asteroid_spawn = 0;
 		}
 

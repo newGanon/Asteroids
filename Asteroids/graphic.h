@@ -14,5 +14,7 @@ void clear_screen(RenderBuffer rb, u32 color);
 void draw_line(RenderBuffer rb, ivec2 v0, ivec2 v1, u32 color); 
 
 void draw_player(RenderBuffer rb, Player player);
-void draw_entities(RenderBuffer rb, EntityManager manager);
+void draw_entities(RenderBuffer rb, EntityManager manager, Player player);
+void draw_outline_and_grid(RenderBuffer rb, EntityManager manager, Player player, f32 map_size);
+void draw_minimap(RenderBuffer rb, EntityManager manager, Player player, f32 map_size);
 

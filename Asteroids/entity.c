@@ -112,7 +112,7 @@ void destroy_entity(EntityManager* manager, i32 idx) {
 	}
 }
 
-void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_time) {
+void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_time, f32 map_size) {
 	// Update movement
 	f32 dt = delta_time / 1000.0f;
 	for (i32 i = 0; i < manager->entity_amt; i++) {
@@ -128,8 +128,13 @@ void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_tim
 		}
 		e->pos = vec2_add(e->pos, (vec2) { e->vel.x* dt, e->vel.y* dt });
 		e->dirty = true;
-		f32 around = e->size * 3;
-		if (point_outside_rect(e->pos, (vec2) { 0 - around, 0 - around}, (vec2) { 1.77f + around, 1.0f + around})) {
+		f32 around = 0;
+		vec2 border_bl = (vec2){ -(map_size + around), -(map_size + around) };
+		vec2 border_tl = (vec2){ map_size + around, map_size + around };
+		vec2 entity_bl = (vec2){ e->pos.x - e->size, e->pos.y - e->size };
+		vec2 entity_tl = (vec2){ e->pos.x + e->size, e->pos.y + e->size };
+
+		if (rect_overlap_rect(entity_bl, entity_tl, border_bl, border_tl) || point_outside_rect(e->pos, border_bl, border_tl)) {
 			e->dirty = true;
 			e->despawn = true;
 		}
@@ -199,7 +204,6 @@ void entity_collisions(EntityManager* manager, EntityManager* queue) {
 			}
 		}
 	}
-	// TODO: split if size is bigger than 0.06
 }
 
 typedef enum side_e {
@@ -209,14 +213,37 @@ typedef enum side_e {
 	RIGHT,
 }side;
 
-void spawn_asteroid(EntityManager* manager) {
-	vec2 pos;
-	vec2 vel;
+
+bool try_spawn_asteroid(EntityManager* manager, f32 map_size, vec2 pos, f32 size) {
+	for (size_t j = 0; j < manager->entity_amt; j++) {
+		Entity e = manager->entities[j];
+		if (e.type == PLAYER) {
+			if (circle_intersect(e.pos, e.size, pos, size * 2.0f)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+void spawn_asteroid(EntityManager* manager, f32 map_size) {
+	vec2 pos = { 0 };
 	f32 speed = 0.1f;
+	vec2 vel = vec2_from_ang(random_between(0 , 6283) / 1000.0f, speed);;
 	f32 size = random_between(80, 130) / 1000.0f;
+	// try spawning a asteroid 100 times before giving up
+	bool found = false;
+	for (size_t i = 0; i < 100; i++) {
+		pos = (vec2){ -(random_between(0, 50000) / 50000.0f) * map_size,  -(random_between(0, 50000) / (50000.0f)) * map_size };
+		if (try_spawn_asteroid(manager, map_size, pos, size)) {
+			found = true;
+			break;
+		}
+	}
+	if(found) add_entity(manager, create_asteroid(pos, vel, size));
 
+	/*
 	f32 angle_const = 78 * 0.3f;
-
 	side s = random_between(0, 3);
 	switch (s)
 	{
@@ -244,4 +271,5 @@ void spawn_asteroid(EntityManager* manager) {
 	}
 
 	add_entity(manager, create_asteroid(pos, vel, size));
+	*/
 }

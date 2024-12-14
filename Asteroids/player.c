@@ -1,6 +1,6 @@
 #include "player.h"
 
-void update_player(Player* player, u64 delta_time, EntityManager* manager) {
+void update_player(Player* player, u64 delta_time, EntityManager* manager, f32 map_size) {
 	f32 ds = (delta_time / 1000.0f);
 	Input input = player->input;
 	Entity* p = &player->p;
@@ -24,10 +24,10 @@ void update_player(Player* player, u64 delta_time, EntityManager* manager) {
 
 	p->vel = vec2_add(p->vel, slow_down);
 
-	if (p->pos.x > 1.0f) p->pos.x -= 1.77f;
-	if (p->pos.x < 0.0f) p->pos.x += 1.77f;
-	if (p->pos.y > 1.0f) p->pos.y -= 1.0f;
-	if (p->pos.y < 0.0f) p->pos.y += 1.0f;
+	if (p->pos.x > map_size) p->pos.x = -map_size;
+	if (p->pos.x < -map_size) p->pos.x = map_size;
+	if (p->pos.y > map_size) p->pos.y = -map_size;
+	if (p->pos.y < -map_size) p->pos.y = map_size;
 }
 
 void player_collisions(Player* player, EntityManager* manager) {

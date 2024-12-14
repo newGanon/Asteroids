@@ -66,6 +66,7 @@ bool revieve_server_messages(Client* c, EntityManager* man) {
 		case ENTITY_STATE: {
 			Entity e = msg.e_state.ent;
 			i32 idx = get_entity_idx(*man, e.id);
+			if (idx == -1 && e.despawn) return;
 			if (idx == -1) {
 				add_entity(man, msg.e_state.ent);
 				man->entities[man->entity_amt - 1].mesh = create_entity_mesh(e.type, e.size);

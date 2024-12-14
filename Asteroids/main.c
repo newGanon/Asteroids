@@ -26,6 +26,7 @@ typedef struct GameState_s {
     EntityManager entity_man;
 
     u64 last_time;
+    f32 map_size;
 }GameState;
 
 // Game specific variables
@@ -65,23 +66,25 @@ void init_render_buffer(HWND hWnd) {
 }
 
 
-void tick_player(Player* p) {
+void tick_player(Client* c, EntityManager* man, f32 map_size) {
     u64 delta_time = time_since(state.last_time);
     state.last_time += delta_time;
-    if (p->dead) { return; }
+    if (c->player.dead) { return; }
 
     while (delta_time >= 500) {
-        update_player(&state.client, 500, &state.entity_man);
+        update_player(c, 500, man, map_size);
         delta_time -= 500;
     }
-    update_player(&state.client, delta_time, &state.entity_man);
+    update_player(c, delta_time, man, map_size);
     delta_time = 0;
 }
 
-void render(RenderBuffer rb, Player* p, EntityManager* man) {
+void render(RenderBuffer rb, Player* p, EntityManager* man, f32 map_size) {
     clear_screen(rb, 0);
+    draw_outline_and_grid(rb, *man, *p, map_size);
     if (!p->dead) { draw_player(rb, *p); }
-    draw_entities(rb, *man);
+    draw_entities(rb, *man, *p);
+    draw_minimap(rb, *man, *p, map_size);
 }
 
 
@@ -173,7 +176,8 @@ int client_online_main(_In_ HINSTANCE hInstance,
 
     // Game
     Player* p = &state.client.player;
-    p->p.pos = (vec2){ 1.77f / 2, 0.5f };
+    //p->p.pos = (vec2){ 1.77f / 2, 0.5f };
+    p->p.pos = (vec2){ 0 };
     p->acceleration = 0.5f;
     p->p.vel = (vec2){ 0 };
     p->p.ang = 0;
@@ -181,6 +185,8 @@ int client_online_main(_In_ HINSTANCE hInstance,
     p->dead = false;
     p->p.mesh = create_entity_mesh(PLAYER, p->p.size);
     p->p.type = PLAYER;
+
+    state.map_size = 2.0f;
 
     //TODO make memory allocation for entities dynamic
     state.entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
@@ -229,10 +235,10 @@ int client_online_main(_In_ HINSTANCE hInstance,
         if(!revieve_server_messages(&state.client, &state.entity_man)) return 1;
 
         // Simulate
-        tick_player(p);
+        tick_player(&state.client, &state.entity_man, state.map_size);
 
         // Render
-        render(state.render_buffer, p, &state.entity_man);
+        render(state.render_buffer, p, &state.entity_man, state.map_size);
         InvalidateRect(Wnd, NULL, FALSE);
 
         // Send messages to server
