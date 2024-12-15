@@ -233,7 +233,7 @@ void spawn_asteroid(EntityManager* manager, f32 map_size) {
 	// try spawning a asteroid 100 times before giving up
 	bool found = false;
 	for (size_t i = 0; i < 100; i++) {
-		pos = (vec2){ (random_between(-5000, 5000) / 5000.0f) * map_size,  (random_between(-5000, 5000) / (5000.0f)) * map_size };
+		pos = (vec2){ (random_between(-5000, 5000) / 5000.0f) * (map_size * 0.9f),  (random_between(-5000, 5000) / (5000.0f)) * (map_size * 0.9f) };
 		if (try_spawn_asteroid(manager, map_size, pos, size)) {
 			found = true;
 			break;

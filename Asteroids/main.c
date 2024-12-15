@@ -32,6 +32,8 @@ typedef struct GameState_s {
 // Game specific variables
 static GameState state = { .running = true };
 
+#define FRAMESPERSECOND 100
+#define TIMEPERUPDATE 1000/FRAMESPERSECOND
 
 u64 get_milliseconds() {
     LARGE_INTEGER freq;
@@ -67,20 +69,17 @@ void init_render_buffer(HWND hWnd) {
 
 
 void tick_player(Client* c, EntityManager* man, f32 map_size) {
-    u64 delta_time = time_since(state.last_time);
-    state.last_time += delta_time;
-    if (c->player.dead) { return; }
 
-    while (delta_time >= 500) {
-        update_player(c, 500, man, map_size);
-        delta_time -= 500;
+    u64 delta_time = time_since(state.last_time);
+    if(delta_time >= TIMEPERUPDATE) {\
+        state.last_time += delta_time;
+        if (!c->player.dead) update_player(c, TIMEPERUPDATE, man, map_size);
+        delta_time -= TIMEPERUPDATE;
     }
-    update_player(c, delta_time, man, map_size);
-    delta_time = 0;
 }
 
 void render(RenderBuffer rb, Player* p, EntityManager* man, f32 map_size) {
-    clear_screen(rb, 0);
+    clear_screen(rb);
     draw_outline_and_grid(rb, *man, *p, map_size);
     if (!p->dead) { draw_player(rb, *p); }
     draw_entities(rb, *man, *p);

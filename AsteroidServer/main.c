@@ -5,7 +5,8 @@
 
 #define DEFAULT_PORT "27015"
 #define MAX_CLIENTS 4
-#define TIMEPERUPDATE 1000/100
+#define TICKSPERSECOND 100
+#define TIMEPERUPDATE 1000/TICKSPERSECOND
 #define ASTEROIDSPAWNTIME 1000
 
 typedef struct ServerState_s {
@@ -194,6 +195,7 @@ void send_entities_to_clients(ServerSocket* s, EntityManager* man) {
 }
 
 send_revive_messages(ServerSocket* s) {
+	// TODO
 	for (size_t i = 0; i < MAX_CLIENTS; i++) {
 
 	}

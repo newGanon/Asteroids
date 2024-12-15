@@ -8,7 +8,8 @@ typedef struct RenderBuffer_s {
     u32* pixels;
 } RenderBuffer;
 
-void clear_screen(RenderBuffer rb, u32 color);
+void clear_screen(RenderBuffer rb);
+void fill_screen(RenderBuffer rb, u32 color);
 
 // Bresenham line algorithm
 void draw_line(RenderBuffer rb, ivec2 v0, ivec2 v1, u32 color); 

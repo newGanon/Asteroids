@@ -1,13 +1,19 @@
 #include "graphic.h"
 #include "math.h"
+#include <string.h>
 
-void clear_screen(RenderBuffer rb, u32 color) {
-	for (size_t i = 0; i < rb.width; i++) {
-		for (size_t j = 0; j < rb.height; j++) {
-			rb.pixels[i + rb.width * j] = color;
-		}
-	}
+void clear_screen(RenderBuffer rb) {
+    memset(rb.pixels, 0, rb.width * rb.height * sizeof(u32));
 }
+
+void fill_screen(RenderBuffer rb, u32 color) {
+    for (size_t i = 0; i < rb.width; i++) {
+        for (size_t j = 0; j < rb.height; j++) {
+            rb.pixels[i + rb.width * j] = color;
+        }
+    }
+}
+
 // TODO make the line algorithm more efficient by checking of line is outside of screen and only draw the part that lies in screen
 void draw_line(RenderBuffer rb, ivec2 v0, ivec2 v1, u32 color) {
     f32 dx = abs(v1.x - v0.x);
@@ -130,16 +136,6 @@ void draw_entities(RenderBuffer rb, EntityManager manager, Player player) {
 
 
 void draw_outline_and_grid(RenderBuffer rb, EntityManager manager, Player player, f32 map_size) {
-    // points of the outline rectangle
-    ivec2 p0 = pos_to_screen(vec2_transform_relative_player((vec2){-map_size, -map_size}, player.p.pos), rb.height, rb.width);
-    ivec2 p1 = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, map_size }, player.p.pos), rb.height, rb.width);
-    ivec2 p2 = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, map_size }, player.p.pos), rb.height, rb.width);
-    ivec2 p3 = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, -map_size }, player.p.pos), rb.height, rb.width);
-
-    draw_line(rb, p0, p1, 0x00FFFFFF);
-    draw_line(rb, p1, p2, 0x00FFFFFF);
-    draw_line(rb, p2, p3, 0x00FFFFFF);
-    draw_line(rb, p3, p0, 0x00FFFFFF);
 
     // draw grid
     i32 lines = map_size * 10;
@@ -154,6 +150,17 @@ void draw_outline_and_grid(RenderBuffer rb, EntityManager manager, Player player
         ivec2 ve = pos_to_screen(vec2_transform_relative_player((vec2) { i* step_size, map_size }, player.p.pos), rb.height, rb.width);
         draw_line(rb, vs, ve, 0x00252626);
     }
+
+    // points of the outline rectangle
+    ivec2 p0 = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, -map_size }, player.p.pos), rb.height, rb.width);
+    ivec2 p1 = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, map_size }, player.p.pos), rb.height, rb.width);
+    ivec2 p2 = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, map_size }, player.p.pos), rb.height, rb.width);
+    ivec2 p3 = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, -map_size }, player.p.pos), rb.height, rb.width);
+
+    draw_line(rb, p0, p1, 0x00FFFFFF);
+    draw_line(rb, p1, p2, 0x00FFFFFF);
+    draw_line(rb, p2, p3, 0x00FFFFFF);
+    draw_line(rb, p3, p0, 0x00FFFFFF);
 
 }
 
