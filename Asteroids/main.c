@@ -24,6 +24,7 @@ typedef struct GameState_s {
     RenderBuffer render_buffer;
     Client client;
     EntityManager entity_man;
+    NetworkPlayer players[MAX_CLIENTS];
 
     u64 last_time;
     f32 map_size;
@@ -229,9 +230,8 @@ int client_online_main(_In_ HINSTANCE hInstance,
             }
             }
         }
-
         // Get messages from the server
-        if(!revieve_server_messages(&state.client, &state.entity_man)) return 1;
+        if(!recieve_server_messages(&state.client, &state.entity_man, &state.players)) return 1;
 
         // Simulate
         tick_player(&state.client, &state.entity_man, state.map_size);

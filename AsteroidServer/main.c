@@ -4,7 +4,6 @@
 #include <stdio.h>
 
 #define DEFAULT_PORT "27015"
-#define MAX_CLIENTS 4
 #define TICKSPERSECOND 100
 #define TIMEPERUPDATE 1000/TICKSPERSECOND
 #define ASTEROIDSPAWNTIME 1000
@@ -20,9 +19,9 @@ typedef struct ServerState_s {
 
 ServerState state;
 
-
-void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg, i32 exclude_id);
-void handle_message_error(ServerSocket* s, EntityManager* man, i32 idx);
+void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg);
+void handle_message_error(ServerSocket* s, EntityManager* man, i32 id);
+void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id);
  
 bool init_network() {
 	WSADATA wsaData;
@@ -53,7 +52,7 @@ bool init_server() {
 		return false;
 	}
 	if (bind(*s, result->ai_addr, (i32)result->ai_addrlen) != SOCKET_ERROR) {
-		if (listen(*s, MAX_CLIENTS) != SOCKET_ERROR) {
+		if (listen(*s, 32) != SOCKET_ERROR) {
 			u_long mode = 1;
 			if (ioctlsocket(*s, FIONBIO, &mode) != SOCKET_ERROR) {
 				state.sockets.listen = *s;
@@ -76,6 +75,7 @@ i32 seach_empty_slot(ServerSocket* s) {
 	}
 }
 
+
 bool accept_connection(ServerState* serv) { 
 	SOCKET s;
 	if (serv->sockets.con_amt >= MAX_CLIENTS) return false;
@@ -91,6 +91,22 @@ bool accept_connection(ServerState* serv) {
 	serv->sockets.player_status[empty_slot].dead = false;
 	serv->sockets.connections[empty_slot].sock = s;
 	serv->sockets.con_amt++;
+
+	send_welcome_message(&serv->sockets, &serv->entity_manager, empty_slot);
+
+	Entity player = (Entity){
+	.ang = 0.0,
+	.id = empty_slot,
+	.despawn = false,
+	.dirty = true,
+	.pos = (vec2) {0, 0},
+	.size = 0.004,
+	.type = PLAYER,
+	.vel = 0,
+	};
+
+	add_entity(&serv->entity_manager, player);
+
 	return true;
 }
 
@@ -104,57 +120,118 @@ i32 get_player_idx(u32 id) {
 	return -1;
 }
 
+void broadcast_new_player_message(ServerSocket* s, EntityManager* man, u32 id) {
+	Message msg = (Message){
+		.msg_header = {
+			.size = sizeof(MessageHeader) + sizeof(MessageNewClient),
+			.type = CLIENT_NEW,
+		},
+		.c_new.id = id,
+	};
+	memcpy(msg.c_new.name, s->player_status[id].name, MAX_NAME_LENGTH);
 
-void handle_message_player_state(ServerSocket* s, EntityManager* man, Message* msg, u32 id) {
+	broadcast_message(s, man, &msg);
+}
+
+void handle_message_client_connect(ServerSocket* s, EntityManager* man, Message* msg, u32 id) {
+	if (!s->connections[id].sock) return;
+	memcpy(s->player_status[id].name, msg->c_connect.name, MAX_NAME_LENGTH);
+	broadcast_new_player_message(s, man, id);
+}
+
+void handle_message_client_player(ServerSocket* s, EntityManager* man, Message* msg, u32 id) {
+
 	if (s->player_status[id].dead) return;
-	Entity p = msg->p_state.player_ent;
-	p.dirty = true;
-	p.id = id;
-
 	i32 idx = get_entity_idx(*man, id);
-	// player id not found, add player
-	if (idx == -1) {
-		add_entity(man, p);
-	}
-	// player id found, update player
-	else {
-		overwrite_entity_idx(man, p, idx);
-	}
-	// check if player is shooting
-	if (msg->p_state.shooting) {
-		vec2 angle_vec2 = vec2_from_ang(p.ang, 1.0f);
-		Entity b = create_bullet(vec2_add(p.pos, vec2_scale(angle_vec2, 8.0 * p.size)), vec2_scale(angle_vec2, 0.8f), 0.003f);
+	if (idx == -1) return;
+
+	Entity* p = &man->entities[idx];
+	p->ang = msg->c_player.ang;
+	p->pos = msg->c_player.pos;
+
+	p->dirty = true;
+
+	if (msg->c_player.shooting) {
+		vec2 angle_vec2 = vec2_from_ang(p->ang, 1.0f);
+		Entity b = create_bullet(vec2_add(p->pos, vec2_scale(angle_vec2, 8.0 * p->size)), vec2_scale(angle_vec2, 0.8f), 0.003f);
 		add_entity(man, b);
 	}
 }
 
-
+i32 count = 0;
 void handle_message(ServerSocket* s, EntityManager* man, Message* msg, u32 id) {
+	// TODO REMOVE
+	if (msg->c_player.shooting) {
+		count++;
+	}
 	switch (msg->msg_header.type)
 	{
-	case PLAYER_STATE: handle_message_player_state(s, man, msg, id); break; 
+	case CLIENT_PLAYER: handle_message_client_player(s, man, msg, id); break;
+	case CLIENT_CONNECT: handle_message_client_connect(s, man, msg, id); break;
 	default: break;
 	}
+} 
+
+void message_to_player(ServerSocket* s, EntityManager* man, Message* msg, u32 id) {
+	if (s->connections[id].sock == 0) return;
+	message_status success = send_message(&s->connections[id], msg);
+	if (success == MESSAGE_ERROR) handle_message_error(s, man, id);
 }
 
-void message_to_player(ServerSocket* s, EntityManager* man, Message* msg, i32 idx, i32 exclude_id) {
-	if (s->connections[idx].sock == 0 || idx == exclude_id) return;
-	message_status success = send_message(&s->connections[idx], msg);
-	if (success == MESSAGE_ERROR) handle_message_error(s, man, idx);
-}
-
-void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg, i32 exclude_id) {
+void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg) {
 	for (i32 j = MAX_CLIENTS - 1; j >= 0; j--) {
-		message_to_player(s, man, msg, j, exclude_id);
+		message_to_player(s, man, msg, j);
 	}
 }
 
-void handle_message_error(ServerSocket* s, EntityManager* man , i32 idx) {
+void broadcast_client_disconnect_message(ServerSocket* s, EntityManager* man, u32 id) {
+	Message msg = (Message){
+			.msg_header = {
+				.size = sizeof(MessageHeader) + sizeof(MessageClientDisconnect),
+				.type = CLIENT_DISCONNECT,
+			},
+			.c_disconnect.id = id,
+	};
+	broadcast_message(s, man, &msg);
+}
+
+void handle_message_error(ServerSocket* s, EntityManager* man , u32 id) {
 	s->con_amt--;
-	s->connections[idx] = (NetworkSocket){ 0 };
-	Entity* e = &man->entities[get_entity_idx(*man, idx)];
+	s->connections[id] = (NetworkSocket){ 0 };
+
+	Entity* e = &man->entities[get_entity_idx(*man, id)];
 	e->dirty = true;
 	e->despawn = true;
+
+	broadcast_client_disconnect_message(s, man, id);
+}
+
+
+void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id) {
+	Message msg = (Message){
+				.msg_header = {
+					.size = sizeof(MessageHeader) + sizeof(MessageClientWelcome),
+					.type = CLIENT_WELCOME,
+				},
+				.c_welcome.id = id,
+	};
+	message_to_player(s, man, &msg, id);
+}
+
+
+void send_player_states_to_client(ServerSocket* s, EntityManager* man) {
+	for (size_t i = 0; i < MAX_CLIENTS; i++) {
+		Message msg = (Message){
+			.msg_header = {
+				.size = sizeof(MessageHeader) + sizeof(MessageClientState),
+				.type = CLIENT_STATE,
+			},
+			.c_state.id = i,
+			.c_state.score = s->player_status[i].score,
+		};
+
+		broadcast_message(s, man, &msg);
+	}
 }
 
 void send_entities_to_clients(ServerSocket* s, EntityManager* man) {
@@ -168,39 +245,16 @@ void send_entities_to_clients(ServerSocket* s, EntityManager* man) {
 					.size = sizeof(MessageHeader) + sizeof(MessageEntityState),
 					.type = ENTITY_STATE,
 				},
-				.e_state.ent = *e,
+				.e_state.entity = *e,
 			};
-			// Exclude e->id, as player entity id correspons to their socket idx
-			broadcast_message(s, man, &msg, e->id);
 
-			// If player despawn is true and player still connected then send them a death message
-			if (e->despawn) {
-				if (e->type == PLAYER) {
-					msg = (Message){
-						.msg_header = {
-							.size = sizeof(MessageHeader) + sizeof(MessagePlayerState),
-							.type = PLAYER_STATE
-						},
-						.p_state.player_ent = *e,
-						.p_state.dead = true,
-					};
-					message_to_player(s, man, &msg, e->id, -1);
-					s->player_status[e->id].dead = true;
-					s->player_status->dead_timer = 0;
-				}
-				remove_entity(man, i);
-			}
+			broadcast_message(s, man, &msg);
+
+			// If despawn is true remove the entity
+			if (e->despawn) remove_entity(man, i); 
 		}
 	}
 }
-
-send_revive_messages(ServerSocket* s) {
-	// TODO
-	for (size_t i = 0; i < MAX_CLIENTS; i++) {
-
-	}
-}
-
 
 u64 get_milliseconds() {
 	LARGE_INTEGER freq;
@@ -222,7 +276,7 @@ void update_tickers(ServerState* s, u64 delta_time) {
 	s->last_asteroid_spawn += delta_time;
 	// update player death timers
 	for (size_t i = 0; i < MAX_CLIENTS; i++) {
-		PlayerStatus* status = &s->sockets.connections[i];
+		PlayerStatus* status = &s->sockets.player_status[i];
 		if (s->sockets.connections[i].sock != 0 && status->dead) {
 			status->dead_timer += delta_time;
 		}
@@ -273,13 +327,13 @@ i32 server_main() {
 
 
 		if (state.last_asteroid_spawn > ASTEROIDSPAWNTIME) {
-			spawn_asteroid(&state.entity_manager, map_size);
+			//spawn_asteroid(&state.entity_manager, map_size);
 			state.last_asteroid_spawn = 0;
 		}
 
 		// Send Messages
 		send_entities_to_clients(&state.sockets, &state.entity_manager);
-		send_revive_messages(&state.sockets);
+		send_player_states_to_client(&state.sockets, &state.entity_manager);
 	}
 	return 0;
 }

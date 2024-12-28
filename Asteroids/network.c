@@ -4,15 +4,16 @@ message_status get_message_from_buffer(u8* buffer, u32* bytes_used, Message* msg
 	if (*bytes_used < sizeof(MessageHeader)) {
 		return MESSAGE_EMPTY;
 	}
-	MessageHeader* head = (MessageHeader*) (buffer);
+	MessageHeader head;
+	memcpy(&head, buffer, sizeof(MessageHeader));
 
-	if (*bytes_used < head->size) {
+	if (*bytes_used < head.size) {
 		return MESSAGE_EMPTY;
 	}
-	*bytes_used -= head->size;
+	*bytes_used -= head.size;
 
-	memcpy(msg, buffer, head->size);
-	memcpy(buffer, buffer + head->size, *bytes_used);
+	memcpy(msg, buffer, head.size);
+	memmove(buffer, buffer + head.size, *bytes_used);
 	return MESSAGE_SUCCESS;
 }
 
@@ -20,6 +21,7 @@ message_status get_message_from_buffer(u8* buffer, u32* bytes_used, Message* msg
 //			0 if there is no message in buffer,
 //			-1 if an error occured and socket should be closed 
 message_status recieve_message(NetworkSocket* s, Message* msg) {
+
 	int flags = 0;
 	int rc = recv(s->sock, &s->buffer[s->bytes_used], sizeof(Message) - s->bytes_used, flags);
 

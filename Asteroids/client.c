@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 bool init_client(Client* client, char* port) {
+	client->id = -1;
 	struct addrinfo* result = NULL,
 		* ptr = NULL,
 		hints;
@@ -39,36 +40,44 @@ bool init_client(Client* client, char* port) {
 	return true;
 }
 
-
 bool send_player_state_to_server(Client* c) {
 	Message msg = {
 		.msg_header = {
-			.type = PLAYER_STATE,
-			.size = sizeof(MessageHeader) + sizeof(MessagePlayerState)
+			.type = CLIENT_PLAYER,
+			.size = sizeof(MessageHeader) + sizeof(MessageClientPlayer)
 		},
-		.p_state.player_ent = c->player.p,
-		.p_state.shooting = c->player.input.shoot,
+		.c_player.ang = c->player.p.ang,
+		.c_player.pos = c->player.p.pos,
+		.c_player.shooting = c->player.input.shoot
 	};
+
 	c->player.input.shoot = false;
-	message_status st = send_message(&c->socket.connection, &msg);
+ 	message_status st = send_message(&c->socket.connection, &msg);
+
 	if (st == MESSAGE_ERROR)
 		return false;
 	return true;
+
 }
 
 
-bool revieve_server_messages(Client* c, EntityManager* man) {
+bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayer* players) {
 	Message msg;
 	message_status st;
 	while (st = recieve_message(&c->socket.connection, &msg)) {
 		switch (msg.msg_header.type)
 		{
 		case ENTITY_STATE: {
-			Entity e = msg.e_state.ent;
+			Entity e = msg.e_state.entity;
+			if (e.id == c->id) {
+				if (e.despawn) c->player.dead = true;
+				else c->player.dead = false;
+				continue;
+			}
 			i32 idx = get_entity_idx(*man, e.id);
 			if (idx == -1 && e.despawn) return;
 			if (idx == -1) {
-				add_entity(man, msg.e_state.ent);
+				add_entity(man, msg.e_state.entity);
 				man->entities[man->entity_amt - 1].mesh = create_entity_mesh(e.type, e.size);
 			}
 			else {
@@ -81,10 +90,23 @@ bool revieve_server_messages(Client* c, EntityManager* man) {
 			}
 			break;
 		}
-		case PLAYER_STATE: {
-			Entity e = msg.p_state.player_ent;
-			c->player.p = e;
-			c->player.dead = msg.p_state.dead;
+		case CLIENT_STATE: {
+			players[msg.c_state.id].score = msg.c_state.score;
+			break;
+		}
+		case CLIENT_WELCOME: {
+			c->id = msg.c_welcome.id;
+			break;
+		}
+		case CLIENT_DISCONNECT: {
+			u32 id = msg.c_disconnect.id;
+			if (id == c->id) return false;
+			players[id] = (NetworkPlayer){0};
+			break;
+		}
+		case CLIENT_NEW: {
+			memcpy(players[msg.c_new.id].name, msg.c_new.name, MAX_NAME_LENGTH);
+			break;
 		}
 		default: break;
 		}
@@ -93,3 +115,4 @@ bool revieve_server_messages(Client* c, EntityManager* man) {
 		return false;
 	return true;
 }
+
