@@ -148,12 +148,13 @@ void handle_message_client_player(ServerSocket* s, EntityManager* man, Message* 
 	Entity* p = &man->entities[idx];
 	p->ang = msg->c_player.ang;
 	p->pos = msg->c_player.pos;
-
 	p->dirty = true;
+
+	s->player_status[id].accelerate = msg->c_player.accelerate;
 
 	if (msg->c_player.shooting) {
 		vec2 angle_vec2 = vec2_from_ang(p->ang, 1.0f);
-		Entity b = create_bullet(vec2_add(p->pos, vec2_scale(angle_vec2, 8.0 * p->size)), vec2_scale(angle_vec2, 0.8f), 0.003f);
+		Entity b = create_bullet(vec2_add(p->pos, vec2_scale(angle_vec2, 8.0 * p->size)), vec2_scale(angle_vec2, 0.8f), 0.003f, id);
 		add_entity(man, b);
 	}
 }
@@ -221,6 +222,7 @@ void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id) {
 
 void send_player_states_to_client(ServerSocket* s, EntityManager* man) {
 	for (size_t i = 0; i < MAX_CLIENTS; i++) {
+		if (s->connections[i].sock == 0) continue;
 		Message msg = (Message){
 			.msg_header = {
 				.size = sizeof(MessageHeader) + sizeof(MessageClientState),
@@ -228,6 +230,7 @@ void send_player_states_to_client(ServerSocket* s, EntityManager* man) {
 			},
 			.c_state.id = i,
 			.c_state.score = s->player_status[i].score,
+			.c_state.accelerate = s->player_status[i].accelerate,
 		};
 
 		broadcast_message(s, man, &msg);
@@ -276,7 +279,7 @@ void update_tickers(ServerState* s, u64 delta_time) {
 	s->last_asteroid_spawn += delta_time;
 	// update player death timers
 	for (size_t i = 0; i < MAX_CLIENTS; i++) {
-		PlayerStatus* status = &s->sockets.player_status[i];
+		NetworkPlayerInfo* status = &s->sockets.player_status[i];
 		if (s->sockets.connections[i].sock != 0 && status->dead) {
 			status->dead_timer += delta_time;
 		}
@@ -322,12 +325,12 @@ i32 server_main() {
 			delta_time -= TIMEPERUPDATE;
 			update_tickers(&state, TIMEPERUPDATE);
 			update_entities(&state.entity_manager, &state.entity_queue, TIMEPERUPDATE, map_size);
-			entity_collisions(&state.entity_manager, &state.entity_queue);
+			entity_collisions(&state.entity_manager, &state.entity_queue, state.sockets.player_status);
 		}
 
 
 		if (state.last_asteroid_spawn > ASTEROIDSPAWNTIME) {
-			//spawn_asteroid(&state.entity_manager, map_size);
+			spawn_asteroid(&state.entity_manager, map_size);
 			state.last_asteroid_spawn = 0;
 		}
 

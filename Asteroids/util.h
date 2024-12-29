@@ -23,6 +23,9 @@ typedef size_t size;
 #define PI_2 PI/2
 #define PI_4 PI/4
 
+#define MAX_NAME_LENGTH 16
+#define MAX_CLIENTS 4
+
 typedef struct vec2_s {
 	f32 x, y;
 }vec2;

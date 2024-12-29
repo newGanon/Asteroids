@@ -2,11 +2,11 @@
 #include "math.h"
 #include <string.h>
 
-void clear_screen(RenderBuffer rb) {
+void clear_screen(BitMap rb) {
     memset(rb.pixels, 0, rb.width * rb.height * sizeof(u32));
 }
 
-void fill_screen(RenderBuffer rb, u32 color) {
+void fill_screen(BitMap rb, u32 color) {
     for (size_t i = 0; i < rb.width; i++) {
         for (size_t j = 0; j < rb.height; j++) {
             rb.pixels[i + rb.width * j] = color;
@@ -15,7 +15,7 @@ void fill_screen(RenderBuffer rb, u32 color) {
 }
 
 // TODO make the line algorithm more efficient by checking of line is outside of screen and only draw the part that lies in screen
-void draw_line(RenderBuffer rb, ivec2 v0, ivec2 v1, u32 color) {
+void draw_line(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
     f32 dx = abs(v1.x - v0.x);
     f32 sx = (v0.x < v1.x) ? 1 : -1;
     f32 dy = -abs(v1.y - v0.y);
@@ -40,7 +40,7 @@ void draw_line(RenderBuffer rb, ivec2 v0, ivec2 v1, u32 color) {
 }
 
 
-static void draw_mesh(RenderBuffer rb, WireframeMesh m, vec2 pos, f32 angle, f32 size, u32 color) {
+static void draw_mesh(BitMap rb, WireframeMesh m, vec2 pos, f32 angle, f32 size, u32 color) {
     ivec2 p0 = pos_to_screen_relative_rotate(vec2_scale(m.points[0], size), pos, angle, rb.height, rb.width);
     ivec2 first = p0;
     for (size_t i = 1; i < m.point_amt; i++) {
@@ -52,7 +52,7 @@ static void draw_mesh(RenderBuffer rb, WireframeMesh m, vec2 pos, f32 angle, f32
 }
 
 
-void draw_player(RenderBuffer rb, Player player) {
+void draw_player(BitMap rb, Player player) {
     Entity p = player.p;
     // player pos if in the middle of the screen, because screenn has 16/9 resolution
     draw_mesh(rb, p.mesh, (vec2) {1.77f/2.0f, 1.0f/2.0f}, p.ang, 1.0f, 0x00FFFFFF);
@@ -69,7 +69,7 @@ void draw_player(RenderBuffer rb, Player player) {
 }
 
 
-void fill_rectangle(RenderBuffer rb, ivec2 v0, ivec2 v1, u32 color) {
+void fill_rectangle(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
     if (v0.x > v1.x) {
         f32 tmp = v0.x;
         v0.x = v1.x;
@@ -94,7 +94,7 @@ void fill_rectangle(RenderBuffer rb, ivec2 v0, ivec2 v1, u32 color) {
 }
 
 
-void draw_entities(RenderBuffer rb, EntityManager manager, Player player) {
+void draw_entities(BitMap rb, EntityManager manager, Player player) {
     for (size_t i = 0; i < manager.entity_amt; i++)
     {
         Entity e = manager.entities[i];
@@ -135,7 +135,7 @@ void draw_entities(RenderBuffer rb, EntityManager manager, Player player) {
 }
 
 
-void draw_outline_and_grid(RenderBuffer rb, EntityManager manager, Player player, f32 map_size) {
+void draw_outline_and_grid(BitMap rb, EntityManager manager, Player player, f32 map_size) {
 
     // draw grid
     i32 lines = map_size * 10;
@@ -165,7 +165,7 @@ void draw_outline_and_grid(RenderBuffer rb, EntityManager manager, Player player
 }
 
 
-void draw_minimap(RenderBuffer rb, EntityManager manager, Player player, f32 map_size) {
+void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size) {
     f32 half_width = 1.77f / 2.0;
     f32 half_height = 1.0f / 2.0;
 
@@ -212,4 +212,21 @@ void draw_minimap(RenderBuffer rb, EntityManager manager, Player player, f32 map
     vec2 p0 = pos_to_minimap((vec2) { player.p.pos.x, player.p.pos.y }, offset, minimap_size, map_size);
     draw_mesh(rb, player.p.mesh, p0, player.p.ang, 0.2f, 0x009C0909);
 
+}
+
+
+void draw_character(BitMap rb, BitMap font, ivec2 pos, i32 size, const char c) {
+    i32 row_elements = (font.width / 8);
+    i32 bx = ((i32)c % row_elements ) * 8;
+    i32 by = (((i32)c / row_elements)) * 8;
+    for (size_t y = 0; y < 8 * size; y++) {
+        for (size_t x = 0; x < 8 * size; x++) {
+            u32 color = font.pixels[(by + (y / size)) * font.width + (bx + (x / size))];
+            i32 rbx = (pos.x + x);
+            i32 rby = (pos.y + y);
+            if (color && rbx > 0 && rbx < rb.width && rby > 0 && rby < rb.height) {
+                rb.pixels[rby * rb.width + rbx] = color;
+            }
+        }
+    }
 }

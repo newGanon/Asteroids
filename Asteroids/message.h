@@ -2,7 +2,6 @@
 #include "util.h"
 #include "entity.h"
 
-#define MAX_NAME_LENGTH 16
 
 typedef enum message_type_e {
 	// CLIENT TO SERVER
@@ -22,6 +21,7 @@ typedef struct MessageClientPlayer_s {
 	vec2 pos;
 	f32 ang;
 	bool shooting;
+	bool accelerate;
 } MessageClientPlayer;
 
 typedef struct MessageClientConnect_s {
@@ -36,6 +36,7 @@ typedef struct MessageEntityState_s {
 typedef struct MessageClientState_s {
 	u32 id;
 	u32 score;
+	bool accelerate;
 }MessageClientState;
 
 typedef struct MessageClientDisconnect_s {

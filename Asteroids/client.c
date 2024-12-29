@@ -48,7 +48,8 @@ bool send_player_state_to_server(Client* c) {
 		},
 		.c_player.ang = c->player.p.ang,
 		.c_player.pos = c->player.p.pos,
-		.c_player.shooting = c->player.input.shoot
+		.c_player.shooting = c->player.input.shoot,
+		.c_player.accelerate = c->player.input.accelerate,
 	};
 
 	c->player.input.shoot = false;
@@ -57,11 +58,28 @@ bool send_player_state_to_server(Client* c) {
 	if (st == MESSAGE_ERROR)
 		return false;
 	return true;
-
 }
 
 
-bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayer* players) {
+bool send_client_connect(Client* c, const char* name) {
+	Message msg = {
+		.msg_header = {
+			.type = CLIENT_CONNECT,
+			.size = sizeof(MessageHeader) + sizeof(MessageClientConnect)
+		},
+	};
+
+	memcpy(msg.c_connect.name, name, 16);
+
+	message_status st = send_message(&c->socket.connection, &msg);
+
+	if (st == MESSAGE_ERROR)
+		return false;
+	return true;
+}
+
+
+bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayerInfo* players) {
 	Message msg;
 	message_status st;
 	while (st = recieve_message(&c->socket.connection, &msg)) {
@@ -92,6 +110,7 @@ bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayer* playe
 		}
 		case CLIENT_STATE: {
 			players[msg.c_state.id].score = msg.c_state.score;
+			players[msg.c_state.id].accelerate = msg.c_state.accelerate;
 			break;
 		}
 		case CLIENT_WELCOME: {
@@ -101,7 +120,7 @@ bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayer* playe
 		case CLIENT_DISCONNECT: {
 			u32 id = msg.c_disconnect.id;
 			if (id == c->id) return false;
-			players[id] = (NetworkPlayer){0};
+			players[id] = (NetworkPlayerInfo){0};
 			break;
 		}
 		case CLIENT_NEW: {

@@ -13,7 +13,7 @@ LRESULT CALLBACK WndProc(_In_ HWND, _In_ UINT, _In_ WPARAM, _In_ LPARAM);
 
 static BITMAPINFO win32_bitmap_info;
 static HINSTANCE hInst;
-static HWND Wnd;
+static HWND global_window;
 
 static const TCHAR sz_window_class[] = _T("DesktopApp");
 static const TCHAR sz_title[] = _T("Asteroids");
@@ -21,10 +21,12 @@ static const TCHAR error_string[] = _T("Call to RegisterClassEx failed!");
 
 typedef struct GameState_s {
     bool running;
-    RenderBuffer render_buffer;
     Client client;
     EntityManager entity_man;
-    NetworkPlayer players[MAX_CLIENTS];
+    NetworkPlayerInfo players[MAX_CLIENTS];
+
+    BitMap render_buffer;
+    BitMap font;
 
     u64 last_time;
     f32 map_size;
@@ -79,12 +81,19 @@ void tick_player(Client* c, EntityManager* man, f32 map_size) {
     }
 }
 
-void render(RenderBuffer rb, Player* p, EntityManager* man, f32 map_size) {
+void render(BitMap rb, BitMap font, Player* p, EntityManager* man, f32 map_size) {
     clear_screen(rb);
     draw_outline_and_grid(rb, *man, *p, map_size);
     if (!p->dead) { draw_player(rb, *p); }
     draw_entities(rb, *man, *p);
     draw_minimap(rb, *man, *p, map_size);
+
+    draw_character(rb, font, (ivec2) { 500, 100 }, 1, 'T');
+    draw_character(rb, font, (ivec2) { 508, 100 }, 1, 'e');
+    draw_character(rb, font, (ivec2) { 516, 100 }, 1, 's');
+    draw_character(rb, font, (ivec2) { 524, 100 }, 1, 't');
+
+    InvalidateRect(global_window, NULL, FALSE);
 }
 
 
@@ -152,7 +161,39 @@ int init_window(_In_ HINSTANCE hInstance,
     // Init Render Buffer
     init_render_buffer(hWnd);
 
-    Wnd = hWnd;
+    global_window = hWnd;
+}
+
+
+void load_resources(GameState* s) {
+    // load font
+    BitMap* font = &s->font;
+
+    HBITMAP bm_handle = LoadImage(NULL, L"font.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION);
+
+    if (!bm_handle) return;
+
+    BITMAP bmp;
+    GetObject(bm_handle, sizeof(BITMAP), &bmp);
+
+    font->pixels = (u32*)malloc(sizeof(u32) * bmp.bmHeight * bmp.bmWidth);
+    font->height = bmp.bmHeight;
+    font->width = bmp.bmWidth;
+
+    BITMAPINFO bm_info = {
+        .bmiHeader = {
+            .biSize = sizeof(BITMAPINFOHEADER),
+            .biWidth = bmp.bmWidth,
+            .biHeight = bmp.bmHeight,
+            .biPlanes = 1,
+            .biBitCount = 32,
+            .biCompression = BI_RGB,
+        }
+    };
+    HDC hdc = GetDC(global_window);
+    GetDIBits(hdc, bm_handle, 0, bmp.bmHeight, font->pixels, &bm_info, DIB_RGB_COLORS);
+    ReleaseDC(global_window, hdc);
+    DeleteObject(bm_handle);
 }
 
 
@@ -163,10 +204,17 @@ int client_online_main(_In_ HINSTANCE hInstance,
     // Initialize game window
     init_window(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
 
+    // load resources
+    load_resources(&state);
+
     // Try to connect to the server and send player state
     if (!init_client(&state.client, "27015")) {
         // TODO exit or try again;
     }   
+
+    char name[16] = { "Tom" };
+
+    send_client_connect(&state.client, name);
 
     // Random numbers
     srand(time(NULL));
@@ -237,8 +285,7 @@ int client_online_main(_In_ HINSTANCE hInstance,
         tick_player(&state.client, &state.entity_man, state.map_size);
 
         // Render
-        render(state.render_buffer, p, &state.entity_man, state.map_size);
-        InvalidateRect(Wnd, NULL, FALSE);
+        render(state.render_buffer, state.font, p, &state.entity_man, state.map_size);
 
         // Send messages to server
         if(!p->dead && !send_player_state_to_server(&state.client)) return 1;

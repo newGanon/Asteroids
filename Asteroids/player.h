@@ -21,5 +21,6 @@ typedef struct Player_s {
 	Input input;
 } Player;
 
+
 void update_player(Player* player, u64 delta_time, EntityManager* manager, f32 map_size);
 void player_collisions(Player* player, EntityManager* manager);

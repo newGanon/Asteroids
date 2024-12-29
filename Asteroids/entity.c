@@ -53,13 +53,14 @@ Entity create_particle_round(vec2 pos, vec2 vel, f32 size, i32 lifetime) {
 	};
 }
 
-Entity create_bullet(vec2 pos, vec2 vel, f32 size) {
+Entity create_bullet(vec2 pos, vec2 vel, f32 size, u32 source_id) {
 	return (Entity) {
 		.pos = pos,
 		.vel = vel,
 		.type = BULLET,
 		.size = 0.003f,
 		.dirty = true,
+		.source_id = source_id,
 		.id = id++,
 	};
 }
@@ -158,9 +159,10 @@ void spawn_explosion(EntityManager* manager, vec2 pos, size amt) {
 	}
 }
 
-void entity_collisions(EntityManager* manager, EntityManager* queue) {
+void entity_collisions(EntityManager* manager, EntityManager* queue, NetworkPlayerInfo* p_info) {
 	for (size_t i = 0; i < manager->entity_amt; i++) {
 		Entity* e1 = &manager->entities[i];
+		if (e1->despawn) continue;
 		for (size_t j = 0; j < manager->entity_amt; j++) {
 			Entity* e2 = &manager->entities[j];
 			switch (e1->type)
@@ -170,11 +172,17 @@ void entity_collisions(EntityManager* manager, EntityManager* queue) {
 				{
 				case ASTEROID: break;
 				case BULLET: {
+					if (e2->despawn) continue;
 					if (circle_intersect(e1->pos, e1->size, e2->pos, e2->size)) {
 						e1->dirty = true;
 						e1->despawn = true;
 						e2->dirty = true;
 						e2->despawn = true;
+						// give player that shot an asteroids points
+						if (e2->source_id < MAX_CLIENTS) {
+							p_info[e2->source_id].score += 100;
+						}
+						// spawn smaller asteroids if destroyed asteroid is big enough
 						if (e1->size > 0.05f) {
 							for (size_t i = 0; i < 2; i++) {
 								f32 speed = vec2_length(e1->vel);
