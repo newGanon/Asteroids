@@ -87,9 +87,12 @@ bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayerInfo* p
 		{
 		case ENTITY_STATE: {
 			Entity e = msg.e_state.entity;
+			// if entity is own player entity only copy certain attributes
 			if (e.id == c->id) {
 				if (e.despawn) c->player.dead = true;
 				else c->player.dead = false;
+
+				c->player.p.size = e.size;
 				continue;
 			}
 			i32 idx = get_entity_idx(*man, e.id);

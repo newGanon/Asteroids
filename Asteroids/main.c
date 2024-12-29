@@ -225,7 +225,6 @@ int client_online_main(_In_ HINSTANCE hInstance,
 
     // Game
     Player* p = &state.client.player;
-    //p->p.pos = (vec2){ 1.77f / 2, 0.5f };
     p->p.pos = (vec2){ 0 };
     p->acceleration = 0.5f;
     p->p.vel = (vec2){ 0 };

@@ -181,6 +181,12 @@ void entity_collisions(EntityManager* manager, EntityManager* queue, NetworkPlay
 						// give player that shot an asteroids points
 						if (e2->source_id < MAX_CLIENTS) {
 							p_info[e2->source_id].score += 100;
+							if (!p_info[e2->source_id].dead) {
+								i32 idx = get_entity_idx(*manager, e2->source_id);
+								if (idx != -1) {
+									manager->entities[idx].size += 0.001;
+								}
+							}
 						}
 						// spawn smaller asteroids if destroyed asteroid is big enough
 						if (e1->size > 0.05f) {

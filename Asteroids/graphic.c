@@ -55,7 +55,7 @@ static void draw_mesh(BitMap rb, WireframeMesh m, vec2 pos, f32 angle, f32 size,
 void draw_player(BitMap rb, Player player) {
     Entity p = player.p;
     // player pos if in the middle of the screen, because screenn has 16/9 resolution
-    draw_mesh(rb, p.mesh, (vec2) {1.77f/2.0f, 1.0f/2.0f}, p.ang, 1.0f, 0x00FFFFFF);
+    draw_mesh(rb, p.mesh, (vec2) {1.77f/2.0f, 1.0f/2.0f}, p.ang, 200.0f * p.size, 0x00FFFFFF);
 
     if (player.input.accelerate) {
         i32 r = random_between(7, 9);
@@ -125,7 +125,7 @@ void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlaye
                 //ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, rb.height, rb.width);
                 //draw_rectangle(rb, p0, p1);
 
-                draw_mesh(rb, e.mesh, e.pos, e.ang, 1.0f, 0x00FFFFFF);
+                draw_mesh(rb, e.mesh, e.pos, e.ang, 200.0f * e.size, 0x00FFFFFF);
                 if (players_info[e.id].accelerate) {
                     i32 r = random_between(7, 9);
                     ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -4.0f * e.size, 3.0f * e.size }, (vec2) { e.pos.x, e.pos.y }, e.ang, rb.height, rb.width);
