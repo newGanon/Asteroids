@@ -254,13 +254,17 @@ void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
     ivec2 pi2 = pos_to_screen((vec2) { loeaderboard_size.x + offset.x, offset.y }, rb.height, rb.width);
     ivec2 pi3 = pos_to_screen((vec2) { loeaderboard_size.x + offset.x, offset.y - loeaderboard_size.y }, rb.height, rb.width);
 
-    //fill_rectangle(rb, pi0, pi2, 0x00FFFFFF);
     fill_rectangle(rb, pi0, pi2, 0x00000000);
+
+    draw_line(rb, pi0, pi1, 0x00FFFFFF);
+    draw_line(rb, pi1, pi2, 0x00FFFFFF);
+    draw_line(rb, pi2, pi3, 0x00FFFFFF);
+    draw_line(rb, pi3, pi0, 0x00FFFFFF);
 
     vec2 size = { rb.width / 1280.0f, rb.height / 720.0f };
     draw_string(rb, font, pos_to_screen((vec2){ 1.50, 0.90 }, rb.height, rb.width), vec2_scale(size, 2.0f), "SCOREBOARD");
 
-    vec2 cur_pos = { 1.52, 0.85 };
+    vec2 cur_pos = { 1.50, 0.85 };
     for (size_t i = 0; i < MAX_CLIENTS; i++) {
         if (!players_info[i].connected) continue;
         // draw name
