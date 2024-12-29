@@ -94,7 +94,7 @@ void fill_rectangle(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
 }
 
 
-void draw_entities(BitMap rb, EntityManager manager, Player player) {
+void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlayerInfo* players_info) {
     for (size_t i = 0; i < manager.entity_amt; i++)
     {
         Entity e = manager.entities[i];
@@ -126,12 +126,19 @@ void draw_entities(BitMap rb, EntityManager manager, Player player) {
                 //draw_rectangle(rb, p0, p1);
 
                 draw_mesh(rb, e.mesh, e.pos, e.ang, 1.0f, 0x00FFFFFF);
+                if (players_info[e.id].accelerate) {
+                    i32 r = random_between(7, 9);
+                    ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -4.0f * e.size, 3.0f * e.size }, (vec2) { e.pos.x, e.pos.y }, e.ang, rb.height, rb.width);
+                    ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -4.0f * e.size, -3.0f * e.size }, (vec2) { e.pos.x, e.pos.y  }, e.ang, rb.height, rb.width);
+                    ivec2 p7 = pos_to_screen_relative_rotate((vec2) { -r * e.size, 0 * e.size }, (vec2) { e.pos.x, e.pos.y  }, e.ang, rb.height, rb.width);
+
+                    draw_line(rb, p5, p7, 0x00FFFFFF);
+                    draw_line(rb, p6, p7, 0x00FFFFFF);
+                }
             }
-            default:
-                break;
+            default: break;
         }
     }
-
 }
 
 
@@ -166,15 +173,12 @@ void draw_outline_and_grid(BitMap rb, EntityManager manager, Player player, f32 
 
 
 void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size) {
-    f32 half_width = 1.77f / 2.0;
-    f32 half_height = 1.0f / 2.0;
-
     f32 minimap_size = 0.3;
-    f32 offset = 0.05f;
-    ivec2 pi0 = pos_to_screen((vec2) { offset, ((1.0f - offset) - minimap_size) }, rb.height, rb.width);
-    ivec2 pi1 = pos_to_screen((vec2) { offset, (1.0f - offset) }, rb.height, rb.width);
-    ivec2 pi2 = pos_to_screen((vec2) { minimap_size + offset, (1.0f - offset) }, rb.height, rb.width);
-    ivec2 pi3 = pos_to_screen((vec2) { minimap_size + offset, ((1.0f - offset) - minimap_size) }, rb.height, rb.width);
+    vec2 offset = { 0.05f, 0.95f };
+    ivec2 pi0 = pos_to_screen((vec2) { offset.x, offset.y - minimap_size }, rb.height, rb.width);
+    ivec2 pi1 = pos_to_screen((vec2) { offset.x, offset.y }, rb.height, rb.width);
+    ivec2 pi2 = pos_to_screen((vec2) { minimap_size + offset.x, offset.y }, rb.height, rb.width);
+    ivec2 pi3 = pos_to_screen((vec2) { minimap_size + offset.x, offset.y - minimap_size }, rb.height, rb.width);
 
     fill_rectangle(rb, pi0, pi2, 0x00000000);
 
@@ -215,18 +219,56 @@ void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size)
 }
 
 
-void draw_character(BitMap rb, BitMap font, ivec2 pos, i32 size, const char c) {
+void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char c) {
     i32 row_elements = (font.width / 8);
     i32 bx = ((i32)c % row_elements ) * 8;
     i32 by = (((i32)c / row_elements)) * 8;
-    for (size_t y = 0; y < 8 * size; y++) {
-        for (size_t x = 0; x < 8 * size; x++) {
-            u32 color = font.pixels[(by + (y / size)) * font.width + (bx + (x / size))];
+    for (size_t y = 0; y < (i32)(8 * size.y); y++) {
+        for (size_t x = 0; x < (i32)(8 * size.x); x++) {
+            u32 color = font.pixels[(i32)(by + (y / size.y)) * font.width + (i32)(bx + (x / size.x))];
             i32 rbx = (pos.x + x);
             i32 rby = (pos.y + y);
             if (color && rbx > 0 && rbx < rb.width && rby > 0 && rby < rb.height) {
                 rb.pixels[rby * rb.width + rbx] = color;
             }
         }
+    }
+}
+
+void draw_string(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char* string) {
+    ivec2 cursor = pos;
+    while (*string) {
+        const char c = *string++;
+        if (c == '\n') cursor.y -= size.y * 8;
+        draw_character(rb, font, cursor, size, c);
+        cursor.x += size.x * 8;
+    }
+}
+
+
+void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
+    vec2 loeaderboard_size = {0.25f, 0.5f};
+    vec2 offset = {1.47, 0.95};
+    ivec2 pi0 = pos_to_screen((vec2) { offset.x, offset.y - loeaderboard_size.y }, rb.height, rb.width);
+    ivec2 pi1 = pos_to_screen((vec2) { offset.x, offset.y }, rb.height, rb.width);
+    ivec2 pi2 = pos_to_screen((vec2) { loeaderboard_size.x + offset.x, offset.y }, rb.height, rb.width);
+    ivec2 pi3 = pos_to_screen((vec2) { loeaderboard_size.x + offset.x, offset.y - loeaderboard_size.y }, rb.height, rb.width);
+
+    //fill_rectangle(rb, pi0, pi2, 0x00FFFFFF);
+    fill_rectangle(rb, pi0, pi2, 0x00000000);
+
+    vec2 size = { rb.width / 1280.0f, rb.height / 720.0f };
+    draw_string(rb, font, pos_to_screen((vec2){ 1.50, 0.90 }, rb.height, rb.width), vec2_scale(size, 2.0f), "SCOREBOARD");
+
+    vec2 cur_pos = { 1.52, 0.85 };
+    for (size_t i = 0; i < MAX_CLIENTS; i++) {
+        if (!players_info[i].connected) continue;
+        // draw name
+        draw_string(rb, font, pos_to_screen(cur_pos, rb.height, rb.width), size, players_info->name);
+        // draw score
+        char str[10];
+        _itoa_s(players_info[i].score, str, 10, 10);
+        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.15, cur_pos.y }, rb.height, rb.width), size, str);
+        cur_pos.y -= 0.04;
     }
 }

@@ -125,6 +125,7 @@ bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayerInfo* p
 		}
 		case CLIENT_NEW: {
 			memcpy(players[msg.c_new.id].name, msg.c_new.name, MAX_NAME_LENGTH);
+			players[msg.c_new.id].connected = true;
 			break;
 		}
 		default: break;

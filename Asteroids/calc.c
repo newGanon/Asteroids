@@ -9,13 +9,13 @@ ivec2 vec2_to_ivec2(vec2 v) { return (ivec2) { (i32)v.x, (i32)v.y }; }
 f32 vec2_length(vec2 v) { return sqrt(v.x * v.x + v.y * v.y); }
 
 
-vec2 pos_to_minimap(vec2 pos, f32 minimap_offset, f32 minimap_size, f32 map_size) {
+vec2 pos_to_minimap(vec2 pos, vec2 minimap_offset, f32 minimap_size, f32 map_size) {
     pos.x += map_size;
     pos.y += map_size;
     f32 minimap_scale = minimap_size / (map_size * 2.0f);
     vec2 minimap_pos = vec2_scale(pos, minimap_scale);
-    minimap_pos.x += 0.05f;
-    minimap_pos.y = 0.95f - (minimap_size - minimap_pos.y);
+    minimap_pos.x += minimap_offset.x;
+    minimap_pos.y = minimap_offset.y - (minimap_size - minimap_pos.y);
     return minimap_pos;
 }
 

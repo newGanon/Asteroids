@@ -36,6 +36,7 @@ typedef struct Entity_s {
 } Entity;
 
 typedef struct NetworkPlayerInfo_s {
+	bool connected;
 	bool dead;
 	u64 dead_timer;
 	bool accelerate;

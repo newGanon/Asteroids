@@ -151,7 +151,6 @@ void handle_message_client_player(ServerSocket* s, EntityManager* man, Message* 
 	p->dirty = true;
 
 	s->player_status[id].accelerate = msg->c_player.accelerate;
-
 	if (msg->c_player.shooting) {
 		vec2 angle_vec2 = vec2_from_ang(p->ang, 1.0f);
 		Entity b = create_bullet(vec2_add(p->pos, vec2_scale(angle_vec2, 8.0 * p->size)), vec2_scale(angle_vec2, 0.8f), 0.003f, id);
@@ -159,12 +158,7 @@ void handle_message_client_player(ServerSocket* s, EntityManager* man, Message* 
 	}
 }
 
-i32 count = 0;
 void handle_message(ServerSocket* s, EntityManager* man, Message* msg, u32 id) {
-	// TODO REMOVE
-	if (msg->c_player.shooting) {
-		count++;
-	}
 	switch (msg->msg_header.type)
 	{
 	case CLIENT_PLAYER: handle_message_client_player(s, man, msg, id); break;
@@ -217,6 +211,22 @@ void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id) {
 				.c_welcome.id = id,
 	};
 	message_to_player(s, man, &msg, id);
+
+	// TODO: MAKE THIS OWN METHOD
+	//send all already connected clients
+	for (size_t i = 0; i < MAX_CLIENTS; i++) {
+		if (s->connections[i].sock == 0 || id == i) continue;
+
+		Message msg = (Message){
+			.msg_header = {
+				.size = sizeof(MessageHeader) + sizeof(MessageNewClient),
+				.type = CLIENT_NEW,
+			},
+			.c_new.id = i,
+		};
+		memcpy(msg.c_new.name, s->player_status[i].name, MAX_NAME_LENGTH);
+		message_to_player(s, man, &msg, id);
+	}
 }
 
 
@@ -327,7 +337,6 @@ i32 server_main() {
 			update_entities(&state.entity_manager, &state.entity_queue, TIMEPERUPDATE, map_size);
 			entity_collisions(&state.entity_manager, &state.entity_queue, state.sockets.player_status);
 		}
-
 
 		if (state.last_asteroid_spawn > ASTEROIDSPAWNTIME) {
 			spawn_asteroid(&state.entity_manager, map_size);

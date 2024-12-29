@@ -12,7 +12,7 @@ f32 vec2_length(vec2 v);
 
 ivec2 pos_to_screen(vec2 p, i32 s_height, i32 s_width);
 ivec2 pos_to_screen_relative_rotate(vec2 point, vec2 relative_to, f32 angle, i32 screen_height, i32 screen_width);
-vec2 pos_to_minimap(vec2 pos, f32 minimap_offset, f32 minimap_size, f32 map_size);
+vec2 pos_to_minimap(vec2 pos, vec2 minimap_offset, f32 minimap_size, f32 map_size);
 
 vec2 vec2_rotate(vec2 v, f32 ang);
 
