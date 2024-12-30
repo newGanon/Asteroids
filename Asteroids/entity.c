@@ -201,7 +201,7 @@ void entity_collisions(EntityManager* manager, EntityManager* queue, NetworkPlay
 					break;
 				}
 				case PLAYER: {
-					if (circle_intersect(e1->pos, e1->size, e2->pos, e2->size)) {
+					if (circle_intersect(e1->pos, e1->size, e2->pos, e2->size * 0.7f)) {
 						e2->dirty = true;
 						e2->despawn = true;
 					}

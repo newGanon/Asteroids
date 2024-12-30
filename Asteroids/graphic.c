@@ -48,11 +48,11 @@ void draw_line(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
 }
 
 
-static void draw_mesh(BitMap rb, WireframeMesh m, vec2 pos, f32 angle, f32 size, u32 color) {
-    ivec2 p0 = pos_to_screen_relative_rotate(vec2_scale(m.points[0], size), pos, angle, rb.height, rb.width);
+static void draw_mesh(BitMap rb, f32 p_size, WireframeMesh m, vec2 pos, f32 angle, f32 size, u32 color) {
+    ivec2 p0 = pos_to_screen_relative_rotate(vec2_scale(m.points[0], size), p_size, pos, angle, rb.height, rb.width);
     ivec2 first = p0;
     for (size_t i = 1; i < m.point_amt; i++) {
-        ivec2 p1 = pos_to_screen_relative_rotate(vec2_scale(m.points[i], size), pos, angle, rb.height, rb.width);
+        ivec2 p1 = pos_to_screen_relative_rotate(vec2_scale(m.points[i], size), p_size, pos, angle, rb.height, rb.width);
         draw_line(rb, p0, p1, color);
         p0 = p1;
     }
@@ -62,14 +62,17 @@ static void draw_mesh(BitMap rb, WireframeMesh m, vec2 pos, f32 angle, f32 size,
 
 void draw_player(BitMap rb, Player player) {
     Entity p = player.p;
+
+    vec2 pos_trans = vec2_transform_relative_player(p.pos, p.size, p.pos);
+
     // player pos if in the middle of the screen, because screenn has 16/9 resolution
-    draw_mesh(rb, p.mesh, (vec2) {1.77f/2.0f, 1.0f/2.0f}, p.ang, p.size, 0x00FFFFFF);
+    draw_mesh(rb, player.p.size, p.mesh, vec2_transform_relative_player(p.pos, p.size, p.pos), p.ang, p.size, 0x00FFFFFF);
 
     if (player.input.accelerate) {
         i32 r = random_between(7, 9);
-        ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -0.4f * p.size, 0.3f * p.size }, (vec2) { 1.77f / 2.0f, 1.0f / 2.0f }, p.ang, rb.height, rb.width);
-        ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -0.4f * p.size, -0.3f * p.size }, (vec2) { 1.77f / 2.0f, 1.0f / 2.0f }, p.ang, rb.height, rb.width);
-        ivec2 p7 = pos_to_screen_relative_rotate((vec2) { (-r * 0.1f) * p.size, 0.0f * p.size }, (vec2) { 1.77f / 2.0f, 1.0f / 2.0f }, p.ang, rb.height, rb.width);
+        ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -0.4f * p.size, 0.3f * p.size }, player.p.size, pos_trans, p.ang, rb.height, rb.width);
+        ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -0.4f * p.size, -0.3f * p.size }, player.p.size, pos_trans, p.ang, rb.height, rb.width);
+        ivec2 p7 = pos_to_screen_relative_rotate((vec2) { (-r * 0.1f) * p.size, 0.0f * p.size }, player.p.size, pos_trans, p.ang, rb.height, rb.width);
 
         draw_line(rb, p5, p7, 0x00FFFFFF);
         draw_line(rb, p6, p7, 0x00FFFFFF);
@@ -107,41 +110,40 @@ void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlaye
     {
         Entity e = manager.entities[i];
         // temporarily set enitty position relative to player to create the illusion of a moving camera
-        e.pos = vec2_transform_relative_player(e.pos, player.p.pos);
+        e.pos = vec2_transform_relative_player(e.pos, player.p.size ,player.p.pos);
 
         switch (e.type)
         {
             case BULLET: {
-                ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, rb.height, rb.width);
-                ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, rb.height, rb.width);
+                ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, player.p.size, rb.height, rb.width);
+                ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, player.p.size, rb.height, rb.width);
                 fill_rectangle(rb, p0, p1, 0x00FFFFFF);
                 break;
             }
             case ASTEROID: {
                 if (e.mesh.point_amt == 0) return;
-                draw_mesh(rb, e.mesh, e.pos, 0, e.size, 0x00FFFFFF);
+                draw_mesh(rb, player.p.size, e.mesh, e.pos, 0, e.size, 0x00FFFFFF);
                 break;
             }
             case PARTICLE_SQUARE: {
-                ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, rb.height, rb.width);
-                ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, rb.height, rb.width);
+                ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, player.p.size, rb.height, rb.width);
+                ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, player.p.size, rb.height, rb.width);
                 fill_rectangle(rb, p0, p1, 0x00FFFFFF);
                 break;
             }
             case PLAYER: {
-                //ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, rb.height, rb.width);
-                //ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, rb.height, rb.width);
-                //draw_rectangle(rb, p0, p1);
-
-                draw_mesh(rb, e.mesh, e.pos, e.ang, e.size, 0x00FFFFFF);
+                //u32 color = 0x00FFFFFF;
+                u32 color = 0x003B7F3E;
+                if (e.size > player.p.size) color = 0x008E1616;
+                draw_mesh(rb, player.p.size, e.mesh, e.pos, e.ang, e.size, color);
                 if (players_info[e.id].accelerate) {
                     i32 r = random_between(7, 9);
-                    ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -0.4f * e.size, 0.3f * e.size }, (vec2) { e.pos.x, e.pos.y }, e.ang, rb.height, rb.width);
-                    ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -0.4f * e.size, -0.3f * e.size }, (vec2) { e.pos.x, e.pos.y  }, e.ang, rb.height, rb.width);
-                    ivec2 p7 = pos_to_screen_relative_rotate((vec2) { (-r * 0.1f) * e.size, 0.0f * e.size }, (vec2) { e.pos.x, e.pos.y }, e.ang, rb.height, rb.width);
-
-                    draw_line(rb, p5, p7, 0x00FFFFFF);
-                    draw_line(rb, p6, p7, 0x00FFFFFF);
+                    ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -0.4f * e.size, 0.3f * e.size }, player.p.size, e.pos, e.ang, rb.height, rb.width);
+                    ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -0.4f * e.size, -0.3f * e.size }, player.p.size, e.pos, e.ang, rb.height, rb.width);
+                    ivec2 p7 = pos_to_screen_relative_rotate((vec2) { (-r * 0.1f) * e.size, 0.0f * e.size }, player.p.size, e.pos, e.ang, rb.height, rb.width);
+                     
+                    draw_line(rb, p5, p7, color);
+                    draw_line(rb, p6, p7, color);
                 }
             }
             default: break;
@@ -157,25 +159,25 @@ void draw_outline_and_grid(BitMap rb, EntityManager manager, Player player, f32 
     f32 step_size = map_size / lines;
     for (i32 i = -(lines-1); i < lines; i++) {
         //horizontal lines
-        ivec2 hs = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, i* step_size }, player.p.pos), rb.height, rb.width);
-        ivec2 he = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, i* step_size }, player.p.pos), rb.height, rb.width);
+        ivec2 hs = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, i* step_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+        ivec2 he = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, i* step_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
         draw_line(rb, hs, he, 0x00252626);
         //vertical lines
-        ivec2 vs = pos_to_screen(vec2_transform_relative_player((vec2) { i* step_size, -map_size }, player.p.pos), rb.height, rb.width);
-        ivec2 ve = pos_to_screen(vec2_transform_relative_player((vec2) { i* step_size, map_size }, player.p.pos), rb.height, rb.width);
+        ivec2 vs = pos_to_screen(vec2_transform_relative_player((vec2) { i* step_size, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+        ivec2 ve = pos_to_screen(vec2_transform_relative_player((vec2) { i* step_size, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
         draw_line(rb, vs, ve, 0x00252626);
     }
 
     // points of the outline rectangle
-    ivec2 p0 = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, -map_size }, player.p.pos), rb.height, rb.width);
-    ivec2 p1 = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, map_size }, player.p.pos), rb.height, rb.width);
-    ivec2 p2 = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, map_size }, player.p.pos), rb.height, rb.width);
-    ivec2 p3 = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, -map_size }, player.p.pos), rb.height, rb.width);
+    ivec2 p0 = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    ivec2 p1 = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    ivec2 p2 = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    ivec2 p3 = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
 
     draw_line(rb, p0, p1, 0x00FFFFFF);
     draw_line(rb, p1, p2, 0x00FFFFFF);
-    draw_line(rb, p2, p3, 0x00FFFFFF);
     draw_line(rb, p3, p0, 0x00FFFFFF);
+    draw_line(rb, p2, p3, 0x00FFFFFF);
 
 }
 
@@ -183,10 +185,10 @@ void draw_outline_and_grid(BitMap rb, EntityManager manager, Player player, f32 
 void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size) {
     f32 minimap_size = 0.3;
     vec2 offset = { 0.05f, 0.95f };
-    ivec2 pi0 = pos_to_screen((vec2) { offset.x, offset.y - minimap_size }, rb.height, rb.width);
-    ivec2 pi1 = pos_to_screen((vec2) { offset.x, offset.y }, rb.height, rb.width);
-    ivec2 pi2 = pos_to_screen((vec2) { minimap_size + offset.x, offset.y }, rb.height, rb.width);
-    ivec2 pi3 = pos_to_screen((vec2) { minimap_size + offset.x, offset.y - minimap_size }, rb.height, rb.width);
+    ivec2 pi0 = pos_to_screen((vec2) { offset.x, offset.y - minimap_size }, 0.05f, rb.height, rb.width);
+    ivec2 pi1 = pos_to_screen((vec2) { offset.x, offset.y }, 0.05f, rb.height, rb.width);
+    ivec2 pi2 = pos_to_screen((vec2) { minimap_size + offset.x, offset.y }, 0.05f, rb.height, rb.width);
+    ivec2 pi3 = pos_to_screen((vec2) { minimap_size + offset.x, offset.y - minimap_size }, 0.05f, rb.height, rb.width);
 
     fill_rectangle(rb, pi0, pi2, 0x00000000);
 
@@ -207,13 +209,13 @@ void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size)
             //fill_rectangle(rb, p0, p1, 0x00FFFFFF);
 
             vec2 p0 = pos_to_minimap((vec2) { e.pos.x, e.pos.y }, offset, minimap_size, map_size);
-            draw_mesh(rb, e.mesh, p0, e.ang, minimap_scale * e.size, 0x00FFFFFF);
+            draw_mesh(rb, 0.05f, e.mesh, p0, e.ang, minimap_scale * e.size, 0x00FFFFFF);
             break;
 
         }
         case PLAYER: {
             vec2 p0 = pos_to_minimap((vec2) { e.pos.x, e.pos.y }, offset, minimap_size, map_size);
-            draw_mesh(rb, e.mesh, p0, e.ang, minimap_scale * e.size, 0x00FFFFFF);
+            draw_mesh(rb, 0.05f, e.mesh, p0, e.ang, minimap_scale * e.size, 0x00FFFFFF);
             break;
         }
         default: break;
@@ -222,7 +224,7 @@ void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size)
 
     // draw main player 
     vec2 p0 = pos_to_minimap((vec2) { player.p.pos.x, player.p.pos.y }, offset, minimap_size, map_size);
-    draw_mesh(rb, player.p.mesh, p0, player.p.ang, minimap_scale * 2.0f * 0.1f, 0x009C0909);
+    draw_mesh(rb, 0.05f, player.p.mesh, p0, player.p.ang, minimap_scale * 1.5f * player.p.size, 0x009C0909);
 
 }
 
@@ -257,10 +259,10 @@ void draw_string(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char* strin
 void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
     vec2 loeaderboard_size = {0.25f, 0.5f};
     vec2 offset = {1.47, 0.95};
-    ivec2 pi0 = pos_to_screen((vec2) { offset.x, offset.y - loeaderboard_size.y }, rb.height, rb.width);
-    ivec2 pi1 = pos_to_screen((vec2) { offset.x, offset.y }, rb.height, rb.width);
-    ivec2 pi2 = pos_to_screen((vec2) { loeaderboard_size.x + offset.x, offset.y }, rb.height, rb.width);
-    ivec2 pi3 = pos_to_screen((vec2) { loeaderboard_size.x + offset.x, offset.y - loeaderboard_size.y }, rb.height, rb.width);
+    ivec2 pi0 = pos_to_screen((vec2) { offset.x, offset.y - loeaderboard_size.y }, 0.05f, rb.height, rb.width);
+    ivec2 pi1 = pos_to_screen((vec2) { offset.x, offset.y }, 0.05f, rb.height, rb.width);
+    ivec2 pi2 = pos_to_screen((vec2) { loeaderboard_size.x + offset.x, offset.y }, 0.05f, rb.height, rb.width);
+    ivec2 pi3 = pos_to_screen((vec2) { loeaderboard_size.x + offset.x, offset.y - loeaderboard_size.y }, 0.05f, rb.height, rb.width);
 
     fill_rectangle(rb, pi0, pi2, 0x00000000);
 
@@ -270,17 +272,17 @@ void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
     draw_line(rb, pi3, pi0, 0x00FFFFFF);
 
     vec2 size = { rb.width / 1280.0f, rb.height / 720.0f };
-    draw_string(rb, font, pos_to_screen((vec2){ 1.50, 0.90 }, rb.height, rb.width), vec2_scale(size, 2.0f), "SCOREBOARD");
+    draw_string(rb, font, pos_to_screen((vec2){ 1.50, 0.90 }, 0.05f, rb.height, rb.width), vec2_scale(size, 2.0f), "SCOREBOARD");
 
     vec2 cur_pos = { 1.50, 0.85 };
     for (size_t i = 0; i < MAX_CLIENTS; i++) {
         if (!players_info[i].connected) continue;
         // draw name
-        draw_string(rb, font, pos_to_screen(cur_pos, rb.height, rb.width), size, players_info->name);
+        draw_string(rb, font, pos_to_screen(cur_pos, 0.05f, rb.height, rb.width), size, players_info->name);
         // draw score
         char str[10];
         _itoa_s(players_info[i].score, str, 10, 10);
-        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.15, cur_pos.y }, rb.height, rb.width), size, str);
+        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.15, cur_pos.y }, 0.05f, rb.height, rb.width), size, str);
         cur_pos.y -= 0.04;
     }
 }
