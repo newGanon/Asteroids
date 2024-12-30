@@ -73,17 +73,17 @@ WireframeMesh create_entity_mesh(entity_type t, f32 size) {
 	case PLAYER: {
 		m.point_amt = 4;
 		m.points = (vec2*)malloc(m.point_amt * sizeof(vec2));
-		m.points[0] = (vec2){ -5.0f * size, 5.0f * size };
-		m.points[1] = (vec2){ 8.0f * size, 0 * size };
-		m.points[2] = (vec2){ -5.0f * size, -5.0f * size };
-		m.points[3] = (vec2){ -2.0f * size, 0 * size };
+		m.points[0] = (vec2){ -0.5f, 0.5f };
+		m.points[1] = (vec2){ 0.8f , 0.0f };
+		m.points[2] = (vec2){ -0.5f, -0.5f };
+		m.points[3] = (vec2){ -0.2f, 0.0f };
 		break;
 	}
 	case ASTEROID: {
 		m.point_amt = 6;
 		m.points = (vec2*)malloc(m.point_amt * sizeof(vec2));
 		for (size_t i = 0; i < 6; i++) {
-			m.points[i] = vec2_from_ang((PI_2 * (2.0f / 3.0f)) * i, size);
+			m.points[i] = vec2_from_ang((PI_2 * (2.0f / 3.0f)) * i, 1.0);
 		}
 	}
 	default: break;
@@ -135,7 +135,7 @@ void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_tim
 		vec2 entity_bl = (vec2){ e->pos.x - e->size, e->pos.y - e->size };
 		vec2 entity_tl = (vec2){ e->pos.x + e->size, e->pos.y + e->size };
 
-		if (rect_overlap_rect(entity_bl, entity_tl, border_bl, border_tl) || point_outside_rect(e->pos, border_bl, border_tl)) {
+		if (!rect_inside_rect(entity_bl, entity_tl, border_bl, border_tl) || point_outside_rect(e->pos, border_bl, border_tl)) {
 			e->dirty = true;
 			e->despawn = true;
 		}
@@ -201,7 +201,7 @@ void entity_collisions(EntityManager* manager, EntityManager* queue, NetworkPlay
 					break;
 				}
 				case PLAYER: {
-					if (circle_intersect(e1->pos, e1->size, e2->pos, e2->size * 3.0f)) {
+					if (circle_intersect(e1->pos, e1->size, e2->pos, e2->size)) {
 						e2->dirty = true;
 						e2->despawn = true;
 					}

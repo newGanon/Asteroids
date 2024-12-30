@@ -50,7 +50,11 @@ bool point_outside_rect(vec2 p, vec2 r0, vec2 r1) {
 
 
 bool rect_overlap_rect(vec2 r0, vec2 r1, vec2 r2, vec2 r3) {
-    return (r0.x < r3.x && r0.y < r3.y && r2.x < r1.x && r2.y < r1.y && !(r1.x < r3.x && r0.x > r2.x && r1.y < r3.y && r0.y > r2.y));
+    return (r0.x < r3.x && r1.x > r2.x && r0.y < r3.y && r1.y > r2.y);
+}
+
+bool rect_inside_rect(vec2 r0, vec2 r1, vec2 r2, vec2 r3) {
+    return (r0.x < r3.x && r1.x > r2.x && r0.y < r3.y && r1.y > r2.y && (r1.x < r3.x && r0.x > r2.x && r1.y < r3.y && r0.y > r2.y));
 }
 
 

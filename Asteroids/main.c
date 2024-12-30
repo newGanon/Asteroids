@@ -229,7 +229,6 @@ int client_online_main(_In_ HINSTANCE hInstance,
     p->acceleration = 0.5f;
     p->p.vel = (vec2){ 0 };
     p->p.ang = 0;
-    p->p.size = 0.004f;
     p->dead = false;
     p->p.mesh = create_entity_mesh(PLAYER, p->p.size);
     p->p.type = PLAYER;
@@ -238,8 +237,6 @@ int client_online_main(_In_ HINSTANCE hInstance,
 
     //TODO make memory allocation for entities dynamic
     state.entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
-
-    bool success;
 
     // Main message loop
     while (state.running) {

@@ -100,7 +100,7 @@ bool accept_connection(ServerState* serv) {
 	.despawn = false,
 	.dirty = true,
 	.pos = (vec2) {0, 0},
-	.size = 0.004,
+	.size = 0.05,
 	.type = PLAYER,
 	.vel = 0,
 	};
@@ -153,7 +153,7 @@ void handle_message_client_player(ServerSocket* s, EntityManager* man, Message* 
 	s->player_status[id].accelerate = msg->c_player.accelerate;
 	if (msg->c_player.shooting) {
 		vec2 angle_vec2 = vec2_from_ang(p->ang, 1.0f);
-		Entity b = create_bullet(vec2_add(p->pos, vec2_scale(angle_vec2, 8.0 * p->size)), vec2_scale(angle_vec2, 0.8f), 0.003f, id);
+		Entity b = create_bullet(vec2_add(p->pos, vec2_scale(angle_vec2, p->size)), vec2_scale(angle_vec2, 0.8f), 0.003f, id);
 		add_entity(man, b);
 	}
 }
@@ -352,6 +352,6 @@ i32 server_main() {
 
 int main() {
 	i32 exit_code = server_main();
-	clean_up();
+	WSACleanup();
 	return exit_code;
 }

@@ -64,7 +64,3 @@ message_status send_message(NetworkSocket* s, Message* msg) {
 	}
 	return true;
 }
-
-void clean_up() {
-	WSACleanup();
-}

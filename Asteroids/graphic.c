@@ -16,6 +16,14 @@ void fill_screen(BitMap rb, u32 color) {
 
 // TODO make the line algorithm more efficient by checking of line is outside of screen and only draw the part that lies in screen
 void draw_line(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
+    vec2 bl;
+    vec2 tr;
+    if (v0.x < v1.x) { bl.x = v0.x; tr.x = v1.x; }
+    else { bl.x = v1.x; tr.x = v0.x; }
+    if (v0.y < v1.y) { bl.y = v0.y; tr.y = v1.y; }
+    else { bl.y = v1.y; tr.y = v0.y; }
+    if (!rect_overlap_rect(bl, tr, (vec2) { 0, 0 }, (vec2) { rb.width, rb.height })) return;
+
     f32 dx = abs(v1.x - v0.x);
     f32 sx = (v0.x < v1.x) ? 1 : -1;
     f32 dy = -abs(v1.y - v0.y);
@@ -55,13 +63,13 @@ static void draw_mesh(BitMap rb, WireframeMesh m, vec2 pos, f32 angle, f32 size,
 void draw_player(BitMap rb, Player player) {
     Entity p = player.p;
     // player pos if in the middle of the screen, because screenn has 16/9 resolution
-    draw_mesh(rb, p.mesh, (vec2) {1.77f/2.0f, 1.0f/2.0f}, p.ang, 200.0f * p.size, 0x00FFFFFF);
+    draw_mesh(rb, p.mesh, (vec2) {1.77f/2.0f, 1.0f/2.0f}, p.ang, p.size, 0x00FFFFFF);
 
     if (player.input.accelerate) {
         i32 r = random_between(7, 9);
-        ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -4.0f * p.size, 3.0f * p.size }, (vec2) { 1.77f / 2.0f, 1.0f/2.0f }, p.ang, rb.height, rb.width);
-        ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -4.0f * p.size, -3.0f * p.size }, (vec2) { 1.77f / 2.0f, 1.0f/2.0f }, p.ang, rb.height, rb.width);
-        ivec2 p7 = pos_to_screen_relative_rotate((vec2) { -r * p.size, 0 * p.size }, (vec2) { 1.77f / 2.0f, 1.0f/2.0f }, p.ang, rb.height, rb.width);
+        ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -0.4f * p.size, 0.3f * p.size }, (vec2) { 1.77f / 2.0f, 1.0f / 2.0f }, p.ang, rb.height, rb.width);
+        ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -0.4f * p.size, -0.3f * p.size }, (vec2) { 1.77f / 2.0f, 1.0f / 2.0f }, p.ang, rb.height, rb.width);
+        ivec2 p7 = pos_to_screen_relative_rotate((vec2) { (-r * 0.1f) * p.size, 0.0f * p.size }, (vec2) { 1.77f / 2.0f, 1.0f / 2.0f }, p.ang, rb.height, rb.width);
 
         draw_line(rb, p5, p7, 0x00FFFFFF);
         draw_line(rb, p6, p7, 0x00FFFFFF);
@@ -111,7 +119,7 @@ void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlaye
             }
             case ASTEROID: {
                 if (e.mesh.point_amt == 0) return;
-                draw_mesh(rb, e.mesh, e.pos, 0, 1.0f, 0x00FFFFFF);
+                draw_mesh(rb, e.mesh, e.pos, 0, e.size, 0x00FFFFFF);
                 break;
             }
             case PARTICLE_SQUARE: {
@@ -125,12 +133,12 @@ void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlaye
                 //ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, rb.height, rb.width);
                 //draw_rectangle(rb, p0, p1);
 
-                draw_mesh(rb, e.mesh, e.pos, e.ang, 200.0f * e.size, 0x00FFFFFF);
+                draw_mesh(rb, e.mesh, e.pos, e.ang, e.size, 0x00FFFFFF);
                 if (players_info[e.id].accelerate) {
                     i32 r = random_between(7, 9);
-                    ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -4.0f * e.size, 3.0f * e.size }, (vec2) { e.pos.x, e.pos.y }, e.ang, rb.height, rb.width);
-                    ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -4.0f * e.size, -3.0f * e.size }, (vec2) { e.pos.x, e.pos.y  }, e.ang, rb.height, rb.width);
-                    ivec2 p7 = pos_to_screen_relative_rotate((vec2) { -r * e.size, 0 * e.size }, (vec2) { e.pos.x, e.pos.y  }, e.ang, rb.height, rb.width);
+                    ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -0.4f * e.size, 0.3f * e.size }, (vec2) { e.pos.x, e.pos.y }, e.ang, rb.height, rb.width);
+                    ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -0.4f * e.size, -0.3f * e.size }, (vec2) { e.pos.x, e.pos.y  }, e.ang, rb.height, rb.width);
+                    ivec2 p7 = pos_to_screen_relative_rotate((vec2) { (-r * 0.1f) * e.size, 0.0f * e.size }, (vec2) { e.pos.x, e.pos.y }, e.ang, rb.height, rb.width);
 
                     draw_line(rb, p5, p7, 0x00FFFFFF);
                     draw_line(rb, p6, p7, 0x00FFFFFF);
@@ -199,13 +207,13 @@ void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size)
             //fill_rectangle(rb, p0, p1, 0x00FFFFFF);
 
             vec2 p0 = pos_to_minimap((vec2) { e.pos.x, e.pos.y }, offset, minimap_size, map_size);
-            draw_mesh(rb, e.mesh, p0, e.ang, minimap_scale, 0x00FFFFFF);
+            draw_mesh(rb, e.mesh, p0, e.ang, minimap_scale * e.size, 0x00FFFFFF);
             break;
 
         }
         case PLAYER: {
             vec2 p0 = pos_to_minimap((vec2) { e.pos.x, e.pos.y }, offset, minimap_size, map_size);
-            draw_mesh(rb, e.mesh, p0, e.ang, minimap_scale, 0x00FFFFFF);
+            draw_mesh(rb, e.mesh, p0, e.ang, minimap_scale * e.size, 0x00FFFFFF);
             break;
         }
         default: break;
@@ -214,7 +222,7 @@ void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size)
 
     // draw main player 
     vec2 p0 = pos_to_minimap((vec2) { player.p.pos.x, player.p.pos.y }, offset, minimap_size, map_size);
-    draw_mesh(rb, player.p.mesh, p0, player.p.ang, 0.2f, 0x009C0909);
+    draw_mesh(rb, player.p.mesh, p0, player.p.ang, minimap_scale * 2.0f * 0.1f, 0x009C0909);
 
 }
 
