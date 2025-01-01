@@ -20,7 +20,6 @@ vec2 pos_to_minimap(vec2 pos, vec2 minimap_offset, f32 minimap_size, f32 map_siz
     return minimap_pos;
 }
 
-
 vec2 vec2_rotate(vec2 v, f32 ang) {
 	return (vec2) {v.x * cos(ang) - v.y * sin(ang), v.x * sin(ang) + v.y * cos(ang) };
 }
@@ -31,6 +30,14 @@ ivec2 pos_to_screen(vec2 p, f32 size, i32 screen_height, i32 screen_width) {
 	p.x *= screen_width / (1.77f * size_scale);
 	p.y *= screen_height / size_scale;
 	return (ivec2) { (i32)p.x, (i32)p.y };
+}
+
+vec2 screen_to_pos(ivec2 p, f32 size, i32 screen_height, i32 screen_width) {
+    f32 size_scale = 20.0f * size;
+    vec2 ret;
+    ret.x = ((f32)p.x / screen_width * 1.77f * size_scale);
+    ret.y = ((f32)p.y / screen_height * size_scale);
+    return ret;
 }
 
 ivec2 pos_to_screen_relative_rotate( vec2 point, f32 p_size, vec2 relative_to, f32 angle, i32 screen_height, i32 screen_width ) {

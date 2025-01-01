@@ -1,6 +1,5 @@
 #include "graphic.h"
 #include "math.h"
-#include <string.h>
 
 void clear_screen(BitMap rb) {
     memset(rb.pixels, 0, rb.width * rb.height * sizeof(u32));
@@ -74,7 +73,8 @@ void fill_rectangle(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
 
 
 
-void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char c) {
+void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const unsigned char c) {
+    if (c > 255) return;
     i32 row_elements = (font.width / 8);
     i32 bx = ((i32)c % row_elements) * 8;
     i32 by = (((i32)c / row_elements)) * 8;
@@ -90,6 +90,16 @@ void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char c) 
     }
 }
 
+void draw_string(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char* string) {
+    ivec2 cursor = pos;
+    while (*string) {
+        const unsigned char c = *string++;
+        if (c == '\n') cursor.y -= size.y * 8;
+        draw_character(rb, font, cursor, size, c);
+        cursor.x += size.x * 8;
+    }
+}
+
 
 static void draw_mesh(BitMap rb, f32 p_size, WireframeMesh m, vec2 pos, f32 angle, f32 size, u32 color) {
     ivec2 p0 = pos_to_screen_relative_rotate(vec2_scale(m.points[0], size), p_size, pos, angle, rb.height, rb.width);
@@ -101,18 +111,6 @@ static void draw_mesh(BitMap rb, f32 p_size, WireframeMesh m, vec2 pos, f32 angl
     }
     draw_line(rb, p0, first, color);
 }
-
-
-void draw_string(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char* string) {
-    ivec2 cursor = pos;
-    while (*string) {
-        const char c = *string++;
-        if (c == '\n') cursor.y -= size.y * 8;
-        draw_character(rb, font, cursor, size, c);
-        cursor.x += size.x * 8;
-    }
-}
-
 
 void draw_player(BitMap rb, Player player) {
     Entity p = player.p;
@@ -168,7 +166,7 @@ void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlaye
                 u32 color = 0x003B7F3E;
                 if (e.size > player.p.size) color = 0x008E1616;
                 draw_mesh(rb, player.p.size, e.mesh, e.pos, e.ang, e.size, color);
-                if (players_info[e.id].accelerate) {
+                if (e.accelerating) {
                     i32 r = random_between(7, 9);
                     ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -0.4f * e.size, 0.3f * e.size }, player.p.size, e.pos, e.ang, rb.height, rb.width);
                     ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -0.4f * e.size, -0.3f * e.size }, player.p.size, e.pos, e.ang, rb.height, rb.width);
@@ -194,8 +192,14 @@ void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlaye
             p = manager.entities[idx];
         }
         f32 font_size = p.size / player.p.size;
+        i32 name_length = strlen(players_info[i].name);
+        f32 pixel_width = name_length * font_size * 8;
+
+        vec2 offset = screen_to_pos((ivec2) {-pixel_width/2 + 2, -40}, player.p.size, rb.height, rb.width);
+
+        vec2 string_start_pos = (vec2){ p.pos.x + offset.x, p.pos.y + offset.y};
         
-        draw_string(rb, font, pos_to_screen(vec2_transform_relative_player(p.pos, player.p.size, player.p.pos), player.p.size, rb.height, rb.width), (vec2) {font_size, font_size}, players_info[i].name);
+        draw_string(rb, font, pos_to_screen(vec2_transform_relative_player(string_start_pos, player.p.size, player.p.pos), player.p.size, rb.height, rb.width), (vec2) {font_size, font_size}, players_info[i].name);
     }
 }
 
@@ -271,9 +275,9 @@ void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size)
     }
 
     // draw main player 
+    if (player.dead) return;
     vec2 p0 = pos_to_minimap((vec2) { player.p.pos.x, player.p.pos.y }, offset, minimap_size, map_size);
     draw_mesh(rb, 0.05f, player.p.mesh, p0, player.p.ang, minimap_scale * 1.5f * player.p.size, 0x009C0909);
-
 }
 
 void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
@@ -291,18 +295,27 @@ void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
     draw_line(rb, pi2, pi3, 0x00FFFFFF);
     draw_line(rb, pi3, pi0, 0x00FFFFFF);
 
-    vec2 size = { rb.width / 1280.0f, rb.height / 720.0f };
-    draw_string(rb, font, pos_to_screen((vec2){ 1.50, 0.90 }, 0.05f, rb.height, rb.width), vec2_scale(size, 2.0f), "SCOREBOARD");
+    vec2 font_size = { 1.0f, 1.0f };
+    const char* title = "SCOREBOARD";
+    draw_string(rb, font, pos_to_screen((vec2){ 1.485, 0.90 }, 0.05f, rb.height, rb.width), vec2_scale(font_size, 2.0f), title);
+    //draw underscore
+    size_t tile_len = strlen(title);
+    for (size_t i = 0; i < tile_len; i++) {
+        ivec2 pos = pos_to_screen((vec2) { 1.485, 0.88 }, 0.05f, rb.height, rb.width);
+        f32 size = 2.0f;
+        draw_character(rb, font, (ivec2) { (i32)(pos.x + i * size * 8), pos.y }, vec2_scale(font_size, size), 196);
+    }
 
     vec2 cur_pos = { 1.50, 0.85 };
     for (size_t i = 0; i < MAX_CLIENTS; i++) {
         if (!players_info[i].connected) continue;
         // draw name
-        draw_string(rb, font, pos_to_screen(cur_pos, 0.05f, rb.height, rb.width), size, players_info->name);
+        draw_string(rb, font, pos_to_screen(cur_pos, 0.05f, rb.height, rb.width), font_size, players_info->name);
         // draw score
-        char str[10];
+        char str[100];
+
         _itoa_s(players_info[i].score, str, 10, 10);
-        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.15, cur_pos.y }, 0.05f, rb.height, rb.width), size, str);
+        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.15, cur_pos.y }, 0.05f, rb.height, rb.width), font_size, str);
         cur_pos.y -= 0.04;
     }
 }

@@ -103,6 +103,7 @@ bool accept_connection(ServerState* serv) {
 	.size = 0.05,
 	.type = PLAYER,
 	.vel = 0,
+	.accelerating = false,
 	};
 
 	add_entity(&serv->entity_manager, player);
@@ -148,12 +149,11 @@ void handle_message_client_player(ServerSocket* s, EntityManager* man, Message* 
 	Entity* p = &man->entities[idx];
 	p->ang = msg->c_player.ang;
 	p->pos = msg->c_player.pos;
+	p->accelerating = msg->c_player.accelerate;
 	p->dirty = true;
-
-	s->player_status[id].accelerate = msg->c_player.accelerate;
 	if (msg->c_player.shooting) {
 		vec2 angle_vec2 = vec2_from_ang(p->ang, 1.0f);
-		Entity b = create_bullet(vec2_add(p->pos, vec2_scale(angle_vec2, p->size * 0.9f)), vec2_scale(angle_vec2, 0.8f), 0.003f, id);
+		Entity b = create_bullet(vec2_add(p->pos, vec2_scale(angle_vec2, p->size * 0.9f)), vec2_scale(angle_vec2, 0.8f), 0.003f * 20.0f * p->size, id);
 		add_entity(man, b);
 	}
 }
@@ -240,7 +240,7 @@ void send_player_states_to_client(ServerSocket* s, EntityManager* man) {
 			},
 			.c_state.id = i,
 			.c_state.score = s->player_status[i].score,
-			.c_state.accelerate = s->player_status[i].accelerate,
+			.c_state.dead = s->player_status[i].dead,
 		};
 
 		broadcast_message(s, man, &msg);

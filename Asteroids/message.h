@@ -36,7 +36,7 @@ typedef struct MessageEntityState_s {
 typedef struct MessageClientState_s {
 	u32 id;
 	u32 score;
-	bool accelerate;
+	bool dead;
 }MessageClientState;
 
 typedef struct MessageClientDisconnect_s {

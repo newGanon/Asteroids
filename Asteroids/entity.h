@@ -23,15 +23,22 @@ typedef struct Entity_s {
 	bool dirty;
 	bool despawn;
 
-	entity_type type;
+	WireframeMesh mesh;
+	
 	//type specific varaiables
+	entity_type type;
 	union {
+		// Players
+		struct {
+			bool accelerating;
+		};
 		// Bullets
 		struct {
 			i32 lifetime;
 			u32 source_id;
 		};
-		WireframeMesh mesh; // Asteroids and other players
+		// Asteroids 
+		//struct {};
 	};
 } Entity;
 
@@ -39,7 +46,6 @@ typedef struct NetworkPlayerInfo_s {
 	bool connected;
 	bool dead;
 	u64 dead_timer;
-	bool accelerate;
 	u64 score;
 	char name[MAX_NAME_LENGTH];
 }NetworkPlayerInfo;

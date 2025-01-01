@@ -1,6 +1,6 @@
 #include "entity.h"
 
-//start id at 100 to make space for players, as players a player id is their socket slot
+//start id at 100 to make space for players, as a playerid corresponds to their server socket slot
 static u64 id = 100;
 
 
@@ -58,7 +58,7 @@ Entity create_bullet(vec2 pos, vec2 vel, f32 size, u32 source_id) {
 		.pos = pos,
 		.vel = vel,
 		.type = BULLET,
-		.size = 0.003f,
+		.size = size,
 		.dirty = true,
 		.source_id = source_id,
 		.id = id++,
@@ -165,6 +165,7 @@ void entity_collisions(EntityManager* manager, EntityManager* queue, NetworkPlay
 		if (e1->despawn) continue;
 		for (size_t j = 0; j < manager->entity_amt; j++) {
 			Entity* e2 = &manager->entities[j];
+			if (e2->despawn) break;
 			switch (e1->type)
 			{
 			case ASTEROID: {
@@ -172,7 +173,6 @@ void entity_collisions(EntityManager* manager, EntityManager* queue, NetworkPlay
 				{
 				case ASTEROID: break;
 				case BULLET: {
-					if (e2->despawn) continue;
 					if (circle_intersect(e1->pos, e1->size, e2->pos, e2->size)) {
 						e1->dirty = true;
 						e1->despawn = true;
@@ -180,11 +180,12 @@ void entity_collisions(EntityManager* manager, EntityManager* queue, NetworkPlay
 						e2->despawn = true;
 						// give player that shot an asteroids points
 						if (e2->source_id < MAX_CLIENTS) {
+							//p_info[e2->source_id].score += (u64)(e1->size * 1000);
 							p_info[e2->source_id].score += 100;
 							if (!p_info[e2->source_id].dead) {
 								i32 idx = get_entity_idx(*manager, e2->source_id);
 								if (idx != -1) {
-									manager->entities[idx].size += 0.001;
+									manager->entities[idx].size += e1->size * 0.1f;
 								}
 							}
 						}
@@ -202,8 +203,18 @@ void entity_collisions(EntityManager* manager, EntityManager* queue, NetworkPlay
 				}
 				case PLAYER: {
 					if (circle_intersect(e1->pos, e1->size, e2->pos, e2->size * 0.7f)) {
-						e2->dirty = true;
-						e2->despawn = true;
+						if (e2->size * 0.5f > e1->size) {
+							e1->dirty = true;
+							e1->despawn = true;
+							//p_info[e2->source_id].score += (u64)(e1->size * 1000);
+							p_info[e2->source_id].score += 100;
+							e2->size += e1->size * 0.1f;
+						}
+						else {
+							e2->dirty = true;
+							e2->despawn = true;
+							p_info[e2->id].dead = true;
+						}
 					}
 					break;
 				}

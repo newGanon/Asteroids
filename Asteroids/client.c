@@ -89,20 +89,22 @@ bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayerInfo* p
 			Entity e = msg.e_state.entity;
 			// if entity is own player entity only copy certain attributes
 			if (e.id == c->id) {
-				if (e.despawn) c->player.dead = true;
-				else c->player.dead = false;
-
 				c->player.p.size = e.size;
+				c->player.p.id = e.id;
 				continue;
 			}
 			i32 idx = get_entity_idx(*man, e.id);
-			if (idx == -1 && e.despawn) return;
+			if (idx == -1 && e.despawn) continue;
+			// entity not found, create new entity
 			if (idx == -1) {
 				add_entity(man, msg.e_state.entity);
 				man->entities[man->entity_amt - 1].mesh = create_entity_mesh(e.type, e.size);
 			}
+			// entity found, update entity
 			else {
-				if (e.despawn) { remove_entity(man, idx); }
+				if (e.despawn) { 
+					remove_entity(man, idx); 
+				}
 				else {
 					// HACK!!! TODO: SAFE MESH SOMEWHERE ELSE 
 					e.mesh = man->entities[idx].mesh;
@@ -113,7 +115,8 @@ bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayerInfo* p
 		}
 		case CLIENT_STATE: {
 			players[msg.c_state.id].score = msg.c_state.score;
-			players[msg.c_state.id].accelerate = msg.c_state.accelerate;
+			players[msg.c_state.id].dead = msg.c_state.dead;
+			if (msg.c_state.id == c->id) c->player.dead = msg.c_state.dead;
 			break;
 		}
 		case CLIENT_WELCOME: {

@@ -14,6 +14,8 @@ ivec2 pos_to_screen(vec2 p, f32 p_size, i32 s_height, i32 s_width);
 ivec2 pos_to_screen_relative_rotate(vec2 point, f32 p_size, vec2 relative_to, f32 angle, i32 screen_height, i32 screen_width);
 vec2 pos_to_minimap(vec2 pos, vec2 minimap_offset, f32 minimap_size, f32 map_size);
 
+vec2 screen_to_pos(ivec2 p, f32 size, i32 screen_height, i32 screen_width);
+
 vec2 vec2_rotate(vec2 v, f32 ang);
 
 bool point_outside_rect(vec2 p, vec2 v0, vec2 v1);

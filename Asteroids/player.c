@@ -29,16 +29,3 @@ void update_player(Player* player, u64 delta_time, EntityManager* manager, f32 m
 	if (p->pos.y > map_size) p->pos.y = -map_size;
 	if (p->pos.y < -map_size) p->pos.y = map_size;
 }
-
-void player_collisions(Player* player, EntityManager* manager) {
-	Entity* p = &player->p;
-	for (i32 i = manager->entity_amt-1; i >= 0; i--) {
-		Entity e = manager->entities[i];
-		if(has_hitbox(e.type) && e.type == ASTEROID) {
-			if (circle_intersect(p->pos, p->size * 6.0f, e.pos, e.size)) {
-				player->dead = true;
-				spawn_explosion(manager, p->pos, 200);
-			}
-		}
-	}
-}
