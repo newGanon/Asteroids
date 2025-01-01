@@ -34,3 +34,11 @@ typedef struct vec2_s {
 typedef struct ivec2_s {
 	i32 x, y;
 }ivec2;
+
+typedef struct rect_s {
+	vec2 bl, tr;
+}rect;
+
+typedef struct irect_s {
+	ivec2 bl, tr;
+}irect;

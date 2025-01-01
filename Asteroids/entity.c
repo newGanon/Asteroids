@@ -135,7 +135,11 @@ void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_tim
 		vec2 entity_bl = (vec2){ e->pos.x - e->size, e->pos.y - e->size };
 		vec2 entity_tl = (vec2){ e->pos.x + e->size, e->pos.y + e->size };
 
-		if (!rect_inside_rect(entity_bl, entity_tl, border_bl, border_tl) || point_outside_rect(e->pos, border_bl, border_tl)) {
+		//if (!rect_inside_rect(entity_bl, entity_tl, border_bl, border_tl) || point_outside_rect(e->pos, border_bl, border_tl)) {
+		//	e->dirty = true;
+		//	e->despawn = true;
+		//}
+		if (!rect_overlap_rect((vec2) { e->pos.x - e->size, e->pos.y - e->size }, (vec2) { e->pos.x + e->size, e->pos.y + e->size }, border_bl, border_tl)) {
 			e->dirty = true;
 			e->despawn = true;
 		}

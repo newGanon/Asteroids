@@ -24,6 +24,8 @@ bool rect_inside_rect(vec2 r0, vec2 r1, vec2 r2, vec2 r3);
 
 bool circle_intersect(vec2 c0, f32 r0, vec2 c1, f32 r1);
 
+irect get_screen_map_rect(f32 map_size, vec2 p_pos, f32 p_size, f32 rb_height, f32 rb_width);
+
 i32 random_between(i32 lower, i32 upper);
 
 #define MIN(a,b) (((a)<(b))?(a):(b))

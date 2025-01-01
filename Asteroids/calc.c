@@ -80,3 +80,8 @@ i32 random_between(i32 lower, i32 upper) {
     return (rand() % (upper - lower + 1)) + lower;
 }
 
+irect get_screen_map_rect(f32 map_size, vec2 p_pos, f32 p_size, f32 rb_height, f32 rb_width) {
+    ivec2 bl = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, -map_size }, p_size, p_pos), p_size, rb_height, rb_width);
+    ivec2 tr = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, map_size }, p_size, p_pos), p_size, rb_height, rb_width);
+    return (irect) { bl, tr };
+}

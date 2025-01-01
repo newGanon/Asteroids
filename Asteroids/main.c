@@ -84,15 +84,10 @@ void tick_player(Client* c, EntityManager* man, f32 map_size) {
 void render(BitMap rb, BitMap font, Player* p, EntityManager* man, f32 map_size, NetworkPlayerInfo* p_info) {
     clear_screen(rb);
     draw_outline_and_grid(rb, *man, *p, map_size);
-    if (!p->dead) { draw_player(rb, *p); }
-    draw_entities(rb, *man, *p, p_info, font);
+    if (!p->dead) { draw_player(rb, *p, map_size); }
+    draw_entities(rb, *man, *p, p_info, font, map_size);
     draw_minimap(rb, *man, *p, map_size);
     draw_scoreboard(rb, font, p_info);
-
-    //draw_character(rb, font, (ivec2) { 500, 100 }, (vec2) { 1.0, 1.0 }, 'T');
-    //draw_character(rb, font, (ivec2) { 512, 100 }, (vec2) { 1.0, 1.0 }, 'e');
-    //draw_character(rb, font, (ivec2) { 524, 100 }, (vec2) { 1.0, 1.0 }, 's');
-    //draw_character(rb, font, (ivec2) { 536, 100 }, (vec2) { 1.0, 1.0 }, 't');
 
     InvalidateRect(global_window, NULL, FALSE);
 }
