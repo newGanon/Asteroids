@@ -85,7 +85,7 @@ void render(BitMap rb, BitMap font, Player* p, EntityManager* man, f32 map_size,
     clear_screen(rb);
     draw_outline_and_grid(rb, *man, *p, map_size);
     if (!p->dead) { draw_player(rb, *p); }
-    draw_entities(rb, *man, *p, p_info);
+    draw_entities(rb, *man, *p, p_info, font);
     draw_minimap(rb, *man, *p, map_size);
     draw_scoreboard(rb, font, p_info);
 

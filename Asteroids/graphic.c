@@ -47,39 +47,6 @@ void draw_line(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
     }
 }
 
-
-static void draw_mesh(BitMap rb, f32 p_size, WireframeMesh m, vec2 pos, f32 angle, f32 size, u32 color) {
-    ivec2 p0 = pos_to_screen_relative_rotate(vec2_scale(m.points[0], size), p_size, pos, angle, rb.height, rb.width);
-    ivec2 first = p0;
-    for (size_t i = 1; i < m.point_amt; i++) {
-        ivec2 p1 = pos_to_screen_relative_rotate(vec2_scale(m.points[i], size), p_size, pos, angle, rb.height, rb.width);
-        draw_line(rb, p0, p1, color);
-        p0 = p1;
-    }
-    draw_line(rb, p0, first, color);
-}
-
-
-void draw_player(BitMap rb, Player player) {
-    Entity p = player.p;
-
-    vec2 pos_trans = vec2_transform_relative_player(p.pos, p.size, p.pos);
-
-    // player pos if in the middle of the screen, because screenn has 16/9 resolution
-    draw_mesh(rb, player.p.size, p.mesh, vec2_transform_relative_player(p.pos, p.size, p.pos), p.ang, p.size, 0x00FFFFFF);
-
-    if (player.input.accelerate) {
-        i32 r = random_between(7, 9);
-        ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -0.4f * p.size, 0.3f * p.size }, player.p.size, pos_trans, p.ang, rb.height, rb.width);
-        ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -0.4f * p.size, -0.3f * p.size }, player.p.size, pos_trans, p.ang, rb.height, rb.width);
-        ivec2 p7 = pos_to_screen_relative_rotate((vec2) { (-r * 0.1f) * p.size, 0.0f * p.size }, player.p.size, pos_trans, p.ang, rb.height, rb.width);
-
-        draw_line(rb, p5, p7, 0x00FFFFFF);
-        draw_line(rb, p6, p7, 0x00FFFFFF);
-    }
-}
-
-
 void fill_rectangle(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
     if (v0.x > v1.x) {
         f32 tmp = v0.x;
@@ -105,7 +72,72 @@ void fill_rectangle(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
 }
 
 
-void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlayerInfo* players_info) {
+
+
+void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char c) {
+    i32 row_elements = (font.width / 8);
+    i32 bx = ((i32)c % row_elements) * 8;
+    i32 by = (((i32)c / row_elements)) * 8;
+    for (size_t y = 0; y < (i32)(8 * size.y); y++) {
+        for (size_t x = 0; x < (i32)(8 * size.x); x++) {
+            u32 color = font.pixels[(i32)(by + (y / size.y)) * font.width + (i32)(bx + (x / size.x))];
+            i32 rbx = (pos.x + x);
+            i32 rby = (pos.y + y);
+            if (color && rbx > 0 && rbx < rb.width && rby > 0 && rby < rb.height) {
+                rb.pixels[rby * rb.width + rbx] = color;
+            }
+        }
+    }
+}
+
+
+static void draw_mesh(BitMap rb, f32 p_size, WireframeMesh m, vec2 pos, f32 angle, f32 size, u32 color) {
+    ivec2 p0 = pos_to_screen_relative_rotate(vec2_scale(m.points[0], size), p_size, pos, angle, rb.height, rb.width);
+    ivec2 first = p0;
+    for (size_t i = 1; i < m.point_amt; i++) {
+        ivec2 p1 = pos_to_screen_relative_rotate(vec2_scale(m.points[i], size), p_size, pos, angle, rb.height, rb.width);
+        draw_line(rb, p0, p1, color);
+        p0 = p1;
+    }
+    draw_line(rb, p0, first, color);
+}
+
+
+void draw_string(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char* string) {
+    ivec2 cursor = pos;
+    while (*string) {
+        const char c = *string++;
+        if (c == '\n') cursor.y -= size.y * 8;
+        draw_character(rb, font, cursor, size, c);
+        cursor.x += size.x * 8;
+    }
+}
+
+
+void draw_player(BitMap rb, Player player) {
+    Entity p = player.p;
+
+    vec2 pos_trans = vec2_transform_relative_player(p.pos, p.size, p.pos);
+
+    // player pos if in the middle of the screen, because screenn has 16/9 resolution
+    draw_mesh(rb, player.p.size, p.mesh, vec2_transform_relative_player(p.pos, p.size, p.pos), p.ang, p.size, 0x00FFFFFF);
+
+    if (player.input.accelerate) {
+        i32 r = random_between(7, 9);
+        ivec2 p5 = pos_to_screen_relative_rotate((vec2) { -0.4f * p.size, 0.3f * p.size }, player.p.size, pos_trans, p.ang, rb.height, rb.width);
+        ivec2 p6 = pos_to_screen_relative_rotate((vec2) { -0.4f * p.size, -0.3f * p.size }, player.p.size, pos_trans, p.ang, rb.height, rb.width);
+        ivec2 p7 = pos_to_screen_relative_rotate((vec2) { (-r * 0.1f)* p.size, 0.0f * p.size }, player.p.size, pos_trans, p.ang, rb.height, rb.width);
+
+        draw_line(rb, p5, p7, 0x00FFFFFF);
+        draw_line(rb, p6, p7, 0x00FFFFFF);
+    }
+}
+
+
+
+
+void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlayerInfo* players_info, BitMap font) {
+    // draw body of the entity
     for (size_t i = 0; i < manager.entity_amt; i++)
     {
         Entity e = manager.entities[i];
@@ -148,6 +180,22 @@ void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlaye
             }
             default: break;
         }
+    }
+    // draw playernames
+    for (size_t i = 0; i < MAX_CLIENTS; i++) {
+        if (!players_info[i].connected || players_info[i].dead) continue;
+        Entity p;
+        if (player.p.id == i) {
+            p = player.p;
+        } 
+        else {
+            i32 idx = get_entity_idx(manager, i);
+            if (idx == -1) continue;
+            p = manager.entities[idx];
+        }
+        f32 font_size = p.size / player.p.size;
+        
+        draw_string(rb, font, pos_to_screen(vec2_transform_relative_player(p.pos, player.p.size, player.p.pos), player.p.size, rb.height, rb.width), (vec2) {font_size, font_size}, players_info[i].name);
     }
 }
 
@@ -227,34 +275,6 @@ void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size)
     draw_mesh(rb, 0.05f, player.p.mesh, p0, player.p.ang, minimap_scale * 1.5f * player.p.size, 0x009C0909);
 
 }
-
-
-void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char c) {
-    i32 row_elements = (font.width / 8);
-    i32 bx = ((i32)c % row_elements ) * 8;
-    i32 by = (((i32)c / row_elements)) * 8;
-    for (size_t y = 0; y < (i32)(8 * size.y); y++) {
-        for (size_t x = 0; x < (i32)(8 * size.x); x++) {
-            u32 color = font.pixels[(i32)(by + (y / size.y)) * font.width + (i32)(bx + (x / size.x))];
-            i32 rbx = (pos.x + x);
-            i32 rby = (pos.y + y);
-            if (color && rbx > 0 && rbx < rb.width && rby > 0 && rby < rb.height) {
-                rb.pixels[rby * rb.width + rbx] = color;
-            }
-        }
-    }
-}
-
-void draw_string(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char* string) {
-    ivec2 cursor = pos;
-    while (*string) {
-        const char c = *string++;
-        if (c == '\n') cursor.y -= size.y * 8;
-        draw_character(rb, font, cursor, size, c);
-        cursor.x += size.x * 8;
-    }
-}
-
 
 void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
     vec2 loeaderboard_size = {0.25f, 0.5f};
