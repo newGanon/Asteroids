@@ -110,9 +110,11 @@ void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const unsigned
     i32 row_elements = (font.width / 8);
     i32 bx = ((i32)c % row_elements) * 8;
     i32 by = (((i32)c / row_elements)) * 8;
-    for (size_t y = 0; y < (i32)(8 * size.y); y++) {
+    for (size_t y = 0; y <= (i32)(8 * size.y); y++) {
         for (size_t x = 0; x < (i32)(8 * size.x); x++) {
-            u32 color = font.pixels[(i32)(by + (y / size.y)) * font.width + (i32)(bx + (x / size.x))];
+            f32 c_x = (bx + (x / size.x));
+            f32 c_y = (by + (y / size.y));
+            u32 color = font.pixels[(i32)c_y * font.width + (i32)c_x];
             i32 rbx = (pos.x + x);
             i32 rby = (pos.y + y);
             if (color && rbx > 0 && rbx < rb.width && rby > 0 && rby < rb.height) {
@@ -233,15 +235,15 @@ void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlaye
             if (idx == -1) continue;
             p = manager.entities[idx];
         }
-        f32 font_size = p.size / player.p.size;
+        vec2 font_size = { p.size / player.p.size * (rb.width / 1280.0f), p.size / player.p.size * (rb.height / 720.0f) };
         i32 name_length = strlen(players_info[i].name);
-        f32 pixel_width = name_length * font_size * 8;
+        f32 pixel_width = name_length * font_size.x * 8;
 
-        vec2 offset = screen_to_pos((ivec2) {-pixel_width/2 + 2, -40 * font_size}, player.p.size, rb.height, rb.width);
+        vec2 offset = screen_to_pos((ivec2) {-pixel_width/2 + 2, -40 * font_size.y}, player.p.size, rb.height, rb.width);
 
         vec2 string_start_pos = (vec2){ p.pos.x + offset.x, p.pos.y + offset.y};
         
-        draw_string(rb, font, pos_to_screen(vec2_transform_relative_player(string_start_pos, player.p.size, player.p.pos), player.p.size, rb.height, rb.width), (vec2) {font_size, font_size}, players_info[i].name);
+        draw_string(rb, font, pos_to_screen(vec2_transform_relative_player(string_start_pos, player.p.size, player.p.pos), player.p.size, rb.height, rb.width), font_size, players_info[i].name);
     }
 }
 
@@ -292,8 +294,8 @@ void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size)
     draw_line(rb, pi3, pi0, 0x00FFFFFF);
 
     irect rel_screen_rect = {
-        .bl = pos_to_screen((vec2) { offset.x, offset.y - minimap_size }, player.p.size, rb.height, rb.width),
-        .tr = pos_to_screen((vec2) { offset.x + minimap_size, offset.y }, player.p.size, rb.height, rb.width),
+        .bl = pos_to_screen((vec2) { offset.x, offset.y - minimap_size }, 0.05f, rb.height, rb.width),
+        .tr = pos_to_screen((vec2) { offset.x + minimap_size, offset.y }, 0.05f, rb.height, rb.width),
     };
 
     //draw entities
@@ -338,15 +340,16 @@ void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
     draw_line(rb, pi2, pi3, 0x00FFFFFF);
     draw_line(rb, pi3, pi0, 0x00FFFFFF);
 
-    vec2 font_size = { 1.0f, 1.0f };
+    vec2 font_size = { rb.width / 1280.0f, rb.height / 720.0f };
     const char* title = "SCOREBOARD";
-    draw_string(rb, font, pos_to_screen((vec2){ 1.485, 0.90 }, 0.05f, rb.height, rb.width), vec2_scale(font_size, 2.0f), title);
+    draw_string(rb, font, pos_to_screen((vec2){ 1.49, 0.90 }, 0.05f, rb.height, rb.width), vec2_scale(font_size, 2.0f), title);
     //draw underscore
     size_t tile_len = strlen(title);
-    for (size_t i = 0; i < tile_len; i++) {
+    vec2 underline_size = { 2.0f, 1.5f };
+    // draw underline, -1 because im drawing all underscor symbols twice as thick to make it consistent with very small screens
+    for (size_t i = 0; i < tile_len-1; i++) {
         ivec2 pos = pos_to_screen((vec2) { 1.485, 0.88 }, 0.05f, rb.height, rb.width);
-        f32 size = 2.0f;
-        draw_character(rb, font, (ivec2) { (i32)(pos.x + i * size * 8), pos.y }, vec2_scale(font_size, size), 196);
+        draw_character(rb, font, (ivec2) { (i32)(pos.x + i * underline_size.x * font_size.x * 8), pos.y }, (vec2) {font_size.x * underline_size.x * 2.0f, font_size.y * underline_size.y}, 196);
     }
 
     vec2 cur_pos = { 1.50, 0.85 };
