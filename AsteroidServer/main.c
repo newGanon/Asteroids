@@ -15,6 +15,7 @@ typedef struct ServerState_s {
 
 	u64 last_time;
 	i32 last_asteroid_spawn;
+	f32 map_size;
 } ServerState;
 
 ServerState state;
@@ -153,8 +154,16 @@ void handle_message_client_player(ServerSocket* s, EntityManager* man, Message* 
 	p->dirty = true;
 	if (msg->c_player.shooting) {
 		vec2 angle_vec2 = vec2_from_ang(p->ang, 1.0f);
-		Entity b = create_bullet(vec2_add(p->pos, vec2_scale(angle_vec2, p->size * 0.9f)), vec2_scale(angle_vec2, 0.8f), 0.003f * 20.0f * p->size, id);
-		add_entity(man, b);
+		vec2 bullet_pos = vec2_add(p->pos, (vec2_scale(angle_vec2, p->size * 0.9f)));
+		f32 bullet_size = 0.003f * 20.0f * p->size;
+		if (!rect_overlap_rect((vec2) { bullet_pos.x - bullet_size, bullet_pos.y - bullet_size },
+							   (vec2) { bullet_pos.x + bullet_size, bullet_pos.y + bullet_size },
+							   (vec2) { -state.map_size, -state.map_size },
+							   (vec2) { state.map_size, state.map_size })) {
+			return;
+		}
+		Entity bullet = create_bullet(bullet_pos, vec2_scale(angle_vec2, 0.8f), bullet_size, id);
+		add_entity(man, bullet);
 	}
 }
 
@@ -303,8 +312,7 @@ i32 server_main() {
 	state.entity_queue.entities = (Entity*)malloc(1000 * sizeof(Entity));
 	state.last_time = get_milliseconds();
 	state.last_asteroid_spawn = 0;
-
-	f32 map_size = 2.0f;
+	state.map_size = 2.0f;
 
 	if (!init_network()) return 1;
 	if (!init_server()) return 1;
@@ -333,12 +341,12 @@ i32 server_main() {
 		while (delta_time >= TIMEPERUPDATE) {
 			delta_time -= TIMEPERUPDATE;
 			update_tickers(&state, TIMEPERUPDATE);
-			update_entities(&state.entity_manager, &state.entity_queue, TIMEPERUPDATE, map_size);
+			update_entities(&state.entity_manager, &state.entity_queue, TIMEPERUPDATE, state.map_size);
 			entity_collisions(&state.entity_manager, &state.entity_queue, state.sockets.player_status);
 		}
 
 		if (state.last_asteroid_spawn > ASTEROIDSPAWNTIME) {
-			spawn_asteroid(&state.entity_manager, map_size);
+			spawn_asteroid(&state.entity_manager, state.map_size);
 			state.last_asteroid_spawn = 0;
 		}
 

@@ -46,7 +46,7 @@ void draw_line(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
     }
 }
 
-void draw_line_in_rect(BitMap rb, ivec2 v0, ivec2 v1, u32 color, irect map_rect) {
+void draw_line_in_rect(BitMap rb, ivec2 v0, ivec2 v1, u32 color, irect rect) {
     vec2 bl;
     vec2 tr;
     if (v0.x < v1.x) { bl.x = v0.x; tr.x = v1.x; }
@@ -62,7 +62,7 @@ void draw_line_in_rect(BitMap rb, ivec2 v0, ivec2 v1, u32 color, irect map_rect)
     f32 err = dx + dy, e2;
 
     for (;;) {
-        if (v0.x >= 0 && v0.x < rb.width && v0.y >= 0 && v0.y < rb.height && v0.x >= map_rect.bl.x && v0.x < map_rect.tr.x && v0.y >= map_rect.bl.y && v0.y < map_rect.tr.y) {
+        if (v0.x >= 0 && v0.x < rb.width && v0.y >= 0 && v0.y < rb.height && v0.x > rect.bl.x && v0.x < rect.tr.x && v0.y > rect.bl.y && v0.y < rect.tr.y) {
             rb.pixels[rb.width * v0.y + v0.x] = color;
         }
         if (v0.x == v1.x && v0.y == v1.y) break;
@@ -102,7 +102,31 @@ void fill_rectangle(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
     }
 }
 
+void fill_rectangle_in_rect(BitMap rb, ivec2 v0, ivec2 v1, u32 color, irect rect) {
+    if (v0.x > v1.x) {
+        f32 tmp = v0.x;
+        v0.x = v1.x;
+        v1.x = tmp;
+    }
+    if (v0.y > v1.y) {
+        f32 tmp = v0.y;
+        v0.y = v1.y;
+        v1.y = tmp;
+    }
 
+    v0.x = CLAMP(v0.x, 0, rb.width - 1);
+    v1.x = CLAMP(v1.x, 0, rb.width - 1);
+    v0.y = CLAMP(v0.y, 0, rb.height - 1);
+    v1.y = CLAMP(v1.y, 0, rb.height - 1);
+
+    for (i32 x = v0.x; x < v1.x; x++) {
+        for (i32 y = v0.y; y < v1.y; y++) {
+            if (x > rect.bl.x && x < rect.tr.x && y > rect.bl.y && y < rect.tr.y) {
+                rb.pixels[x + y * rb.width] = color;
+            }
+        }
+    }
+}
 
 
 void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const unsigned char c) {
@@ -191,7 +215,7 @@ void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlaye
             case BULLET: {
                 ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, player.p.size, rb.height, rb.width);
                 ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, player.p.size, rb.height, rb.width);
-                fill_rectangle(rb, p0, p1, 0x00FFFFFF);
+                fill_rectangle_in_rect(rb, p0, p1, 0x00FFFFFF, rel_screen_map_rect);
                 break;
             }
             case ASTEROID: {
@@ -202,7 +226,7 @@ void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlaye
             case PARTICLE_SQUARE: {
                 ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, player.p.size, rb.height, rb.width);
                 ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, player.p.size, rb.height, rb.width);
-                fill_rectangle(rb, p0, p1, 0x00FFFFFF);
+                fill_rectangle_in_rect(rb, p0, p1, 0x00FFFFFF, rel_screen_map_rect);
                 break;
             }
             case PLAYER: {
@@ -253,7 +277,7 @@ void draw_outline_and_grid(BitMap rb, EntityManager manager, Player player, f32 
     i32 lines = map_size * 10;
     f32 step_size = map_size / lines;
 
-    //horizontal lines
+    //horizontal gridlines
     ivec2 horizontal_start_screen, horizontal_end_screen;
     f32 x_start = CLAMP(player.p.pos.x - (1.77f / 2.0f) * (20 * player.p.size), -map_size, map_size);
     f32 x_end = CLAMP(player.p.pos.x + (1.77f / 2.0f) * (20 * player.p.size), -map_size, map_size);
@@ -263,16 +287,8 @@ void draw_outline_and_grid(BitMap rb, EntityManager manager, Player player, f32 
         horizontal_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_end, cur_y }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
         draw_line(rb, horizontal_start_screen, horizontal_end_screen, 0x00252626);
     }
-    // bottom borderline
-    horizontal_start_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_start, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-    horizontal_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_end, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-    draw_line(rb, horizontal_start_screen, horizontal_end_screen, 0x00FFFFFF);
-    // top borderline
-    horizontal_start_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_start, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-    horizontal_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_end, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-    draw_line(rb, horizontal_start_screen, horizontal_end_screen, 0x00FFFFFF);
 
-    //vertical lines
+    //vertical gridlines
     ivec2 vertical_start_screen, vertical_end_screen;
     f32 y_start = CLAMP(player.p.pos.y - (1.0f / 2.0f) * (20 * player.p.size), -map_size, map_size);
     f32 y_end = CLAMP(player.p.pos.y + (1.0f / 2.0f) * (20 * player.p.size), -map_size, map_size);
@@ -282,6 +298,16 @@ void draw_outline_and_grid(BitMap rb, EntityManager manager, Player player, f32 
         vertical_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { cur_x, y_end }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
         draw_line(rb, vertical_start_screen, vertical_end_screen, 0x00252626);
     }
+
+    // bottom borderline
+    horizontal_start_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_start, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    horizontal_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_end, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    draw_line(rb, horizontal_start_screen, horizontal_end_screen, 0x00FFFFFF);
+    // top borderline
+    horizontal_start_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_start, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    horizontal_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_end, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    draw_line(rb, horizontal_start_screen, horizontal_end_screen, 0x00FFFFFF);
+
     // left borderline
     horizontal_start_screen = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, y_start }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
     horizontal_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, y_end }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
