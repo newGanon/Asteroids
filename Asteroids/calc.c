@@ -5,10 +5,13 @@ vec2 vec2_sub(vec2 v1, vec2 v2) { return (vec2) { v1.x - v2.x, v1.y - v2.y }; }
 vec2 vec2_scale(vec2 v, f32 factor) {return (vec2) { v.x * factor, v.y * factor};}
 vec2 vec2_from_ang(f32 ang, f32 len) { return (vec2) { cos(ang) * len, sin(ang) * len}; }
 vec2 vec2_transform_relative_player(vec2 v, f32 p_size, vec2 player_pos) { return (vec2){ v.x - (player_pos.x - (1.77f * (20.0f * p_size)/ 2.0f)), v.y - (player_pos.y - (1.0f * (20.0f * p_size) / 2.0f)) }; }
-vec2 ivec2_to_vec2(ivec2 v) { return (vec2) { (f32)v.x, (f32)v.y }; }
-ivec2 vec2_to_ivec2(vec2 v) { return (ivec2) { (i32)v.x, (i32)v.y }; }
 f32 vec2_length(vec2 v) { return sqrt(v.x * v.x + v.y * v.y); }
 
+ivec2 ivec2_add(ivec2 v1, ivec2 v2) { return (ivec2) { v1.x + v2.x, v1.y + v2.y }; }
+ivec2 ivec2_sub(ivec2 v1, ivec2 v2) { return (ivec2) { v1.x - v2.x, v1.y - v2.y }; }
+
+vec2 ivec2_to_vec2(ivec2 v) { return (vec2) { (f32)v.x, (f32)v.y }; }
+ivec2 vec2_to_ivec2(vec2 v) { return (ivec2) { (i32)v.x, (i32)v.y }; }
 
 vec2 pos_to_minimap(vec2 pos, vec2 minimap_offset, f32 minimap_size, f32 map_size) {
     pos.x += map_size;
@@ -24,16 +27,16 @@ vec2 vec2_rotate(vec2 v, f32 ang) {
 	return (vec2) {v.x * cos(ang) - v.y * sin(ang), v.x * sin(ang) + v.y * cos(ang) };
 }
 
-ivec2 pos_to_screen(vec2 p, f32 size, i32 screen_height, i32 screen_width) {
+ivec2 pos_to_screen(vec2 p, f32 p_size, i32 screen_height, i32 screen_width) {
     // player should be able to see more if he's bigger
-    f32 size_scale = 20.0f * size;
+    f32 size_scale = 20.0f * p_size;
 	p.x *= screen_width / (1.77f * size_scale);
 	p.y *= screen_height / size_scale;
 	return (ivec2) { (i32)p.x, (i32)p.y };
 }
 
-vec2 screen_to_pos(ivec2 p, f32 size, i32 screen_height, i32 screen_width) {
-    f32 size_scale = 20.0f * size;
+vec2 screen_to_pos(ivec2 p, f32 p_size, i32 screen_height, i32 screen_width) {
+    f32 size_scale = 20.0f * p_size;
     vec2 ret;
     ret.x = ((f32)p.x / screen_width * 1.77f * size_scale);
     ret.y = ((f32)p.y / screen_height * size_scale);
@@ -42,6 +45,10 @@ vec2 screen_to_pos(ivec2 p, f32 size, i32 screen_height, i32 screen_width) {
 
 ivec2 pos_to_screen_relative_rotate( vec2 point, f32 p_size, vec2 relative_to, f32 angle, i32 screen_height, i32 screen_width ) {
 	return pos_to_screen(vec2_add(vec2_rotate(point, angle), relative_to), p_size, screen_height, screen_width);
+}
+
+vec2 screen_to_pos_relative(ivec2 point, f32 p_size, ivec2 relative_to, f32 angle, i32 screen_height, i32 screen_width) {
+    return screen_to_pos(ivec2_add(point, relative_to), p_size, screen_height, screen_width);
 }
 
 bool point_outside_rect(vec2 p, vec2 r0, vec2 r1) {

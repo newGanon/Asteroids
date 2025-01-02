@@ -249,32 +249,47 @@ void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlaye
 
 
 void draw_outline_and_grid(BitMap rb, EntityManager manager, Player player, f32 map_size) {
-
     // draw grid
     i32 lines = map_size * 10;
     f32 step_size = map_size / lines;
-    for (i32 i = -(lines-1); i < lines; i++) {
-        //horizontal lines
-        ivec2 hs = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, i* step_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-        ivec2 he = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, i* step_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-        draw_line(rb, hs, he, 0x00252626);
-        //vertical lines
-        ivec2 vs = pos_to_screen(vec2_transform_relative_player((vec2) { i* step_size, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-        ivec2 ve = pos_to_screen(vec2_transform_relative_player((vec2) { i* step_size, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-        draw_line(rb, vs, ve, 0x00252626);
+
+    //horizontal lines
+    ivec2 horizontal_start_screen, horizontal_end_screen;
+    f32 x_start = CLAMP(player.p.pos.x - (1.77f / 2.0f) * (20 * player.p.size), -map_size, map_size);
+    f32 x_end = CLAMP(player.p.pos.x + (1.77f / 2.0f) * (20 * player.p.size), -map_size, map_size);
+    for (f32 cur_y = -map_size; cur_y < map_size; cur_y += step_size) {
+        if (fabs(cur_y - player.p.pos.y) > (1.0f/2.0f) * (20 * player.p.size)) continue;
+        horizontal_start_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_start, cur_y }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+        horizontal_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_end, cur_y }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+        draw_line(rb, horizontal_start_screen, horizontal_end_screen, 0x00252626);
     }
+    // bottom borderline
+    horizontal_start_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_start, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    horizontal_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_end, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    draw_line(rb, horizontal_start_screen, horizontal_end_screen, 0x00FFFFFF);
+    // top borderline
+    horizontal_start_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_start, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    horizontal_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { x_end, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    draw_line(rb, horizontal_start_screen, horizontal_end_screen, 0x00FFFFFF);
 
-    // points of the outline rectangle
-    ivec2 p0 = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-    ivec2 p1 = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-    ivec2 p2 = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-    ivec2 p3 = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, -map_size }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
-
-    draw_line(rb, p0, p1, 0x00FFFFFF);
-    draw_line(rb, p1, p2, 0x00FFFFFF);
-    draw_line(rb, p3, p0, 0x00FFFFFF);
-    draw_line(rb, p2, p3, 0x00FFFFFF);
-
+    //vertical lines
+    ivec2 vertical_start_screen, vertical_end_screen;
+    f32 y_start = CLAMP(player.p.pos.y - (1.0f / 2.0f) * (20 * player.p.size), -map_size, map_size);
+    f32 y_end = CLAMP(player.p.pos.y + (1.0f / 2.0f) * (20 * player.p.size), -map_size, map_size);
+    for (f32 cur_x = -map_size; cur_x < map_size; cur_x += step_size) {
+        if (fabs(cur_x - player.p.pos.x) > (1.77f / 2.0f) * (20 * player.p.size)) continue;
+        vertical_start_screen = pos_to_screen(vec2_transform_relative_player((vec2) { cur_x, y_start }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+        vertical_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { cur_x, y_end }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+        draw_line(rb, vertical_start_screen, vertical_end_screen, 0x00252626);
+    }
+    // left borderline
+    horizontal_start_screen = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, y_start }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    horizontal_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { -map_size, y_end }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    draw_line(rb, horizontal_start_screen, horizontal_end_screen, 0x00FFFFFF);
+    // right borderline
+    horizontal_start_screen = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, y_start }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    horizontal_end_screen = pos_to_screen(vec2_transform_relative_player((vec2) { map_size, y_end }, player.p.size, player.p.pos), player.p.size, rb.height, rb.width);
+    draw_line(rb, horizontal_start_screen, horizontal_end_screen, 0x00FFFFFF);
 }
 
 
@@ -356,7 +371,7 @@ void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
     for (size_t i = 0; i < MAX_CLIENTS; i++) {
         if (!players_info[i].connected) continue;
         // draw name
-        draw_string(rb, font, pos_to_screen(cur_pos, 0.05f, rb.height, rb.width), font_size, players_info->name);
+        draw_string(rb, font, pos_to_screen(cur_pos, 0.05f, rb.height, rb.width), font_size, players_info[i].name);
         // draw score
         char str[100];
 

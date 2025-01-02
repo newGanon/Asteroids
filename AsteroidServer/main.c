@@ -296,7 +296,6 @@ void update_tickers(ServerState* s, u64 delta_time) {
 	}
 }
 
-
 i32 server_main() {
 	state = (ServerState){ 0 };
 	// TODO: make entity_manager dynamic
