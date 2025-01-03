@@ -25,7 +25,7 @@ typedef size_t size;
 #define PI_4 PI/4
 
 #define MAX_NAME_LENGTH 16
-#define MAX_CLIENTS 4
+#define MAX_CLIENTS 10
 #define ASTEROIDSPAWNTIME 1000
 #define PLAYERDEATHTIME 1000
 

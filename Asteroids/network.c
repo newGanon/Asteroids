@@ -62,5 +62,5 @@ message_status send_message(NetworkSocket* s, Message* msg) {
 	if (bs == 0) {
 		return MESSAGE_ERROR;
 	}
-	return true;
+	return MESSAGE_SUCCESS;
 }

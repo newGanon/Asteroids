@@ -7,7 +7,6 @@
 #define TICKSPERSECOND 100
 #define TIMEPERUPDATE 1000/TICKSPERSECOND
 
-
 typedef struct ServerState_s {
 	ServerSocket sockets;
 	EntityManager entity_manager;
@@ -19,6 +18,15 @@ typedef struct ServerState_s {
 } ServerState;
 
 ServerState state;
+
+//TODO MAKE THIS INDIVUDUAL FOR EACH CONNECTION
+#define BLOCKEDLENGTH 1000
+typedef struct Blocket_Message_s {
+	Message msg;
+	u32 id;
+}Blocket_Message;
+Blocket_Message blocked_messages[BLOCKEDLENGTH];
+size_t blocked_len = 0;
 
 void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg);
 void handle_message_error(ServerSocket* s, EntityManager* man, i32 id);
@@ -181,8 +189,14 @@ void handle_message(ServerSocket* s, EntityManager* man, Message* msg, u32 id) {
 
 void message_to_player(ServerSocket* s, EntityManager* man, Message* msg, u32 id) {
 	if (s->connections[id].sock == 0) return;
-	message_status success = send_message(&s->connections[id], msg);
-	if (success == MESSAGE_ERROR) handle_message_error(s, man, id);
+	message_status msg_code = send_message(&s->connections[id], msg);
+	if (msg_code == MESSAGE_ERROR) handle_message_error(s, man, id);
+	else if (msg_code == MESSAGE_EMPTY && blocked_len < BLOCKEDLENGTH) {
+		if (!msg->e_state.entity.despawn) return;
+		blocked_messages[blocked_len].msg = *msg;
+		blocked_messages[blocked_len].id = id;
+		blocked_len++;
+	}
 }
 
 void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg) {
@@ -305,6 +319,25 @@ void send_entities_to_clients(ServerSocket* s, EntityManager* man) {
 	}
 }
 
+void resend_blocked_messages(ServerSocket* s, EntityManager* man, Blocket_Message* blocked_msgs, size_t* blocked_len) {
+	for (i32 i = 0; i < *blocked_len; i++) {
+		Message* msg = &blocked_messages[i];
+		u32 id = blocked_messages[i].id;
+		message_status stat = send_message(&s->connections[id], msg);
+		switch (stat)
+		{
+		case (MESSAGE_EMPTY): { break; }
+		case (MESSAGE_ERROR): { handle_message_error(s, man, id); break; }
+		case (MESSAGE_SUCCESS): {
+			memmove(&blocked_messages[i], &blocked_messages[i + 1], sizeof(Blocket_Message) * (*blocked_len - (i + 1))); 
+			*blocked_len -= 1;
+			i--;
+			break; 
+		}
+		}
+	}
+}
+
 u64 get_milliseconds() {
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
@@ -331,6 +364,7 @@ void update_tickers(ServerState* s, u64 delta_time) {
 		}
 	}
 }
+
 
 i32 server_main() {
 	state = (ServerState){ 0 };
@@ -395,6 +429,8 @@ i32 server_main() {
 		// Send Messages
 		send_entities_to_clients(&state.sockets, &state.entity_manager);
 		send_player_states_to_client(&state.sockets, &state.entity_manager);
+
+		resend_blocked_messages(&state.sockets, &state.entity_manager, blocked_messages, &blocked_len);
 	}
 	return 0;
 }

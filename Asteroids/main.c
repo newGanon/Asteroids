@@ -214,7 +214,7 @@ int client_online_main(_In_ HINSTANCE hInstance,
     send_client_connect(&state.client, name);
 
     //get player info
-    while (state.client.player.p.size == 0.0f) {
+    while (state.client.player.p.size == 0.0f && state.client.player.dead) {
         if (!recieve_server_messages(&state.client, &state.entity_man, &state.players)) return 1;
     }
 
