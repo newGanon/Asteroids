@@ -26,6 +26,8 @@ typedef size_t size;
 
 #define MAX_NAME_LENGTH 16
 #define MAX_CLIENTS 4
+#define ASTEROIDSPAWNTIME 1000
+#define PLAYERDEATHTIME 1000
 
 typedef struct vec2_s {
 	f32 x, y;

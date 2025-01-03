@@ -38,6 +38,7 @@ static GameState state = { .running = true };
 #define FRAMESPERSECOND 100
 #define TIMEPERUPDATE 1000/FRAMESPERSECOND
 
+
 u64 get_milliseconds() {
     LARGE_INTEGER freq;
     QueryPerformanceFrequency(&freq);
@@ -208,9 +209,14 @@ int client_online_main(_In_ HINSTANCE hInstance,
         // TODO exit or try again;
     }   
 
-    char name[16] = { "Tom" };
+    char name[16] = { "TomTomTomTomTom" };
 
     send_client_connect(&state.client, name);
+
+    //get player info
+    while (state.client.player.p.size == 0.0f) {
+        if (!recieve_server_messages(&state.client, &state.entity_man, &state.players)) return 1;
+    }
 
     // Random numbers
     srand(time(NULL));
@@ -220,13 +226,8 @@ int client_online_main(_In_ HINSTANCE hInstance,
 
     // Game
     Player* p = &state.client.player;
-    p->p.pos = (vec2){ 0 };
     p->acceleration = 0.5f;
-    p->p.vel = (vec2){ 0 };
-    p->p.ang = 0;
-    p->dead = false;
     p->p.mesh = create_entity_mesh(PLAYER, p->p.size);
-    p->p.type = PLAYER;
 
     state.map_size = 2.0f;
 

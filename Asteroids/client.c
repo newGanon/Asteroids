@@ -89,8 +89,15 @@ bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayerInfo* p
 			Entity e = msg.e_state.entity;
 			// if entity is own player entity only copy certain attributes
 			if (e.id == c->id) {
-				c->player.p.size = e.size;
-				c->player.p.id = e.id;
+				if (c->player.dead) {
+					WireframeMesh mesh = c->player.p.mesh;
+					c->player.p = msg.e_state.entity;
+					c->player.p.mesh = mesh;
+				}
+				else {
+					c->player.p.size = e.size;
+					c->player.p.id = e.id;
+				}
 				continue;
 			}
 			i32 idx = get_entity_idx(*man, e.id);
@@ -116,6 +123,7 @@ bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayerInfo* p
 		case CLIENT_STATE: {
 			players[msg.c_state.id].score = msg.c_state.score;
 			players[msg.c_state.id].dead = msg.c_state.dead;
+			players[msg.c_state.id].dead_timer = msg.c_state.dead_timer;
 			if (msg.c_state.id == c->id) c->player.dead = msg.c_state.dead;
 			break;
 		}

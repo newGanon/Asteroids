@@ -45,7 +45,7 @@ typedef struct Entity_s {
 typedef struct NetworkPlayerInfo_s {
 	bool connected;
 	bool dead;
-	u64 dead_timer;
+	i64 dead_timer;
 	u64 score;
 	char name[MAX_NAME_LENGTH];
 }NetworkPlayerInfo;

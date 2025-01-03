@@ -37,6 +37,7 @@ typedef struct MessageClientState_s {
 	u32 id;
 	u32 score;
 	bool dead;
+	i32 dead_timer;
 }MessageClientState;
 
 typedef struct MessageClientDisconnect_s {

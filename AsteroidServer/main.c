@@ -6,7 +6,7 @@
 #define DEFAULT_PORT "27015"
 #define TICKSPERSECOND 100
 #define TIMEPERUPDATE 1000/TICKSPERSECOND
-#define ASTEROIDSPAWNTIME 1000
+
 
 typedef struct ServerState_s {
 	ServerSocket sockets;
@@ -76,6 +76,21 @@ i32 seach_empty_slot(ServerSocket* s) {
 	}
 }
 
+Entity create_player(EntityManager* man, i32 id) {
+	Entity player = (Entity){
+	.ang = 0.0,
+	.id = id,
+	.despawn = false,
+	.dirty = true,
+	.pos = (vec2) {0, 0},
+	.size = 0.05,
+	.type = PLAYER,
+	.vel = 0,
+	.accelerating = false,
+	};
+	return player;
+}
+
 
 bool accept_connection(ServerState* serv) { 
 	SOCKET s;
@@ -89,26 +104,14 @@ bool accept_connection(ServerState* serv) {
 		return false;
 	}
 	i32 empty_slot = seach_empty_slot(serv);
-	serv->sockets.player_status[empty_slot].dead = false;
 	serv->sockets.connections[empty_slot].sock = s;
 	serv->sockets.con_amt++;
+	serv->sockets.player_status[empty_slot].connected = true;
 
-	send_welcome_message(&serv->sockets, &serv->entity_manager, empty_slot);
-
-	Entity player = (Entity){
-	.ang = 0.0,
-	.id = empty_slot,
-	.despawn = false,
-	.dirty = true,
-	.pos = (vec2) {0, 0},
-	.size = 0.05,
-	.type = PLAYER,
-	.vel = 0,
-	.accelerating = false,
-	};
-
+	Entity player = create_player(&serv->entity_manager, empty_slot);
 	add_entity(&serv->entity_manager, player);
 
+	send_welcome_message(&serv->sockets, &serv->entity_manager, empty_slot, player);
 	return true;
 }
 
@@ -211,8 +214,9 @@ void handle_message_error(ServerSocket* s, EntityManager* man , u32 id) {
 }
 
 
-void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id) {
-	Message msg = (Message){
+void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id, Entity player) {
+	Message msg;
+	msg = (Message){
 				.msg_header = {
 					.size = sizeof(MessageHeader) + sizeof(MessageClientWelcome),
 					.type = CLIENT_WELCOME,
@@ -226,7 +230,7 @@ void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id) {
 	for (size_t i = 0; i < MAX_CLIENTS; i++) {
 		if (s->connections[i].sock == 0 || id == i) continue;
 
-		Message msg = (Message){
+		msg = (Message){
 			.msg_header = {
 				.size = sizeof(MessageHeader) + sizeof(MessageNewClient),
 				.type = CLIENT_NEW,
@@ -236,6 +240,28 @@ void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id) {
 		memcpy(msg.c_new.name, s->player_status[i].name, MAX_NAME_LENGTH);
 		message_to_player(s, man, &msg, id);
 	}
+
+	msg = (Message){
+				.msg_header = {
+					.size = sizeof(MessageHeader) + sizeof(MessageEntityState),
+					.type = ENTITY_STATE,
+				},
+				.e_state.entity = player,
+	};
+	message_to_player(s, man, &msg, id);
+
+	NetworkPlayerInfo info = s->player_status[id];
+	msg = (Message){
+	.msg_header = {
+			.size = sizeof(MessageHeader) + sizeof(MessageClientState),
+			.type = CLIENT_STATE,
+		},
+		.c_state.id = id,
+		.c_state.score = info.score,
+		.c_state.dead = info.dead,
+		.c_state.dead_timer = info.dead_timer,
+	};
+
 }
 
 
@@ -250,6 +276,7 @@ void send_player_states_to_client(ServerSocket* s, EntityManager* man) {
 			.c_state.id = i,
 			.c_state.score = s->player_status[i].score,
 			.c_state.dead = s->player_status[i].dead,
+			.c_state.dead_timer = s->player_status[i].dead_timer,
 		};
 
 		broadcast_message(s, man, &msg);
@@ -300,7 +327,7 @@ void update_tickers(ServerState* s, u64 delta_time) {
 	for (size_t i = 0; i < MAX_CLIENTS; i++) {
 		NetworkPlayerInfo* status = &s->sockets.player_status[i];
 		if (s->sockets.connections[i].sock != 0 && status->dead) {
-			status->dead_timer += delta_time;
+			status->dead_timer -= delta_time;
 		}
 	}
 }
@@ -345,9 +372,24 @@ i32 server_main() {
 			entity_collisions(&state.entity_manager, &state.entity_queue, state.sockets.player_status);
 		}
 
+		// spawn asteroids
 		if (state.last_asteroid_spawn > ASTEROIDSPAWNTIME) {
 			spawn_asteroid(&state.entity_manager, state.map_size);
 			state.last_asteroid_spawn = 0;
+		}
+		
+		//revive players
+		for (size_t i = 0; i < MAX_CLIENTS; i++) {
+			NetworkPlayerInfo* player_info = &state.sockets.player_status[i];
+			if (player_info->connected) {
+				if (player_info->dead_timer < 0) {
+					player_info->dead_timer = 0;
+					player_info->dead = false;
+
+					Entity player = create_player(&state.entity_manager, i);
+					add_entity(&state.entity_manager, player);
+				}
+			}
 		}
 
 		// Send Messages

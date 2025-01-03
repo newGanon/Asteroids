@@ -394,14 +394,21 @@ void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
     }
 
     vec2 cur_pos = { 1.50, 0.85 };
+    // buffer to draw numbers
+    char str[100];
     for (size_t i = 0; i < MAX_CLIENTS; i++) {
         if (!players_info[i].connected) continue;
+        if (players_info[i].dead) {
+            //draw death timer
+            _itoa_s(players_info[i].dead_timer, str, 100, 10);
+            draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x, cur_pos.y + 0.02f }, 0.05f, rb.height, rb.width), font_size, str);
+        }
+
         // draw name
         draw_string(rb, font, pos_to_screen(cur_pos, 0.05f, rb.height, rb.width), font_size, players_info[i].name);
-        // draw score
-        char str[100];
 
-        _itoa_s(players_info[i].score, str, 10, 10);
+        // draw score
+        _itoa_s(players_info[i].score, str, 100, 10);
         draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.15, cur_pos.y }, 0.05f, rb.height, rb.width), font_size, str);
         cur_pos.y -= 0.04;
     }

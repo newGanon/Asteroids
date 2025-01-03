@@ -218,6 +218,7 @@ void entity_collisions(EntityManager* manager, EntityManager* queue, NetworkPlay
 							e2->dirty = true;
 							e2->despawn = true;
 							p_info[e2->id].dead = true;
+							p_info[e2->id].dead_timer = PLAYERDEATHTIME;
 						}
 					}
 					break;
