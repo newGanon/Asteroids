@@ -159,6 +159,7 @@ void draw_string(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char* strin
 }
 
 static void draw_mesh_in_rect(BitMap rb, f32 p_size, WireframeMesh m, vec2 pos, f32 angle, f32 size, u32 color, irect map_rect_screen_cords) {
+    if (m.point_amt == 0) return;
     ivec2 p0 = pos_to_screen_relative_rotate(vec2_scale(m.points[0], size), p_size, pos, angle, rb.height, rb.width);
     ivec2 first = p0;
     for (size_t i = 1; i < m.point_amt; i++) {
@@ -170,6 +171,7 @@ static void draw_mesh_in_rect(BitMap rb, f32 p_size, WireframeMesh m, vec2 pos, 
 }
 
 static void draw_mesh(BitMap rb, f32 p_size, WireframeMesh m, vec2 pos, f32 angle, f32 size, u32 color) {
+    if (m.point_amt == 0) return;
     ivec2 p0 = pos_to_screen_relative_rotate(vec2_scale(m.points[0], size), p_size, pos, angle, rb.height, rb.width);
     ivec2 first = p0;
     for (size_t i = 1; i < m.point_amt; i++) {
@@ -409,7 +411,7 @@ void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
 
         // draw score
         _itoa_s(players_info[i].score, str, 100, 10);
-        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.15, cur_pos.y }, 0.05f, rb.height, rb.width), font_size, str);
+        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.18, cur_pos.y }, 0.05f, rb.height, rb.width), font_size, str);
         cur_pos.y -= 0.04;
     }
 }

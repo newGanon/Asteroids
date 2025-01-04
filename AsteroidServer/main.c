@@ -19,14 +19,6 @@ typedef struct ServerState_s {
 
 ServerState state;
 
-//TODO MAKE THIS INDIVUDUAL FOR EACH CONNECTION
-#define BLOCKEDLENGTH 1000
-typedef struct Blocket_Message_s {
-	Message msg;
-	u32 id;
-}Blocket_Message;
-Blocket_Message blocked_messages[BLOCKEDLENGTH];
-size_t blocked_len = 0;
 
 void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg);
 void handle_message_error(ServerSocket* s, EntityManager* man, i32 id);
@@ -123,16 +115,6 @@ bool accept_connection(ServerState* serv) {
 	return true;
 }
 
-i32 get_player_idx(u32 id) {
-	for (size_t i = 0; i < state.entity_manager.entity_amt; i++) {
-		// found player already in entity array
-		if (state.entity_manager.entities[i].type == PLAYER || state.entity_manager.entities[i].id == id) {
-			return i;
-		}
-	}
-	return -1;
-}
-
 void broadcast_new_player_message(ServerSocket* s, EntityManager* man, u32 id) {
 	Message msg = (Message){
 		.msg_header = {
@@ -191,11 +173,18 @@ void message_to_player(ServerSocket* s, EntityManager* man, Message* msg, u32 id
 	if (s->connections[id].sock == 0) return;
 	message_status msg_code = send_message(&s->connections[id], msg);
 	if (msg_code == MESSAGE_ERROR) handle_message_error(s, man, id);
-	else if (msg_code == MESSAGE_EMPTY && blocked_len < BLOCKEDLENGTH) {
-		if (!msg->e_state.entity.despawn) return;
-		blocked_messages[blocked_len].msg = *msg;
-		blocked_messages[blocked_len].id = id;
-		blocked_len++;
+	else {
+		if (msg_code == MESSAGE_EMPTY) {
+			BufferedMessage* buff_messages = s->message_buffer[id].buff_messages;
+			size_t* buff_len = &s->message_buffer[id].buff_len;
+			if (*buff_len < MAX_BUFFERED_MESSAGE) {
+				if (msg->msg_header.type == ENTITY_STATE && !msg->e_state.entity.despawn) return;
+				if (msg->msg_header.type == CLIENT_STATE && !msg->c_state.dead) return;
+ 				buff_messages[*buff_len].buff_msg = *msg;
+				buff_messages[*buff_len].id = id;
+				*buff_len += 1;
+			}
+		}
 	}
 }
 
@@ -319,21 +308,25 @@ void send_entities_to_clients(ServerSocket* s, EntityManager* man) {
 	}
 }
 
-void resend_blocked_messages(ServerSocket* s, EntityManager* man, Blocket_Message* blocked_msgs, size_t* blocked_len) {
-	for (i32 i = 0; i < *blocked_len; i++) {
-		Message* msg = &blocked_messages[i];
-		u32 id = blocked_messages[i].id;
-		message_status stat = send_message(&s->connections[id], msg);
-		switch (stat)
-		{
-		case (MESSAGE_EMPTY): { break; }
-		case (MESSAGE_ERROR): { handle_message_error(s, man, id); break; }
-		case (MESSAGE_SUCCESS): {
-			memmove(&blocked_messages[i], &blocked_messages[i + 1], sizeof(Blocket_Message) * (*blocked_len - (i + 1))); 
-			*blocked_len -= 1;
-			i--;
-			break; 
-		}
+void resend_buffered_messages(ServerSocket* s, EntityManager* man, BufferedMessageManager* buff_man) {
+	for (size_t c = 0; c < MAX_CLIENTS; c++) {
+		if (!s->player_status[c].connected) continue;
+		BufferedMessage* buff_msgs = buff_man[c].buff_messages;
+		size_t* buff_len = &buff_man[c].buff_len;
+		for (i32 i = 0; i < *buff_len; i++) {
+			Message* msg = &buff_msgs[i];
+			message_status stat = send_message(&s->connections[c], msg);
+			switch (stat)
+			{
+			case (MESSAGE_EMPTY): { break; }
+			case (MESSAGE_ERROR): { handle_message_error(s, man, c); break; }
+			case (MESSAGE_SUCCESS): {
+				memmove(&buff_msgs[i], &buff_msgs[i + 1], sizeof(BufferedMessage) * (*buff_len - (i + 1)));
+				*buff_len -= 1;
+				i--;
+				break;
+			}
+			}
 		}
 	}
 }
@@ -430,7 +423,7 @@ i32 server_main() {
 		send_entities_to_clients(&state.sockets, &state.entity_manager);
 		send_player_states_to_client(&state.sockets, &state.entity_manager);
 
-		resend_blocked_messages(&state.sockets, &state.entity_manager, blocked_messages, &blocked_len);
+		resend_buffered_messages(&state.sockets, &state.entity_manager, &state.sockets.message_buffer);
 	}
 	return 0;
 }

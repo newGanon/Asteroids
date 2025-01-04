@@ -27,6 +27,7 @@ typedef struct ServerSocket_s {
 	SOCKET listen;
 	NetworkSocket connections[MAX_CLIENTS];
 	NetworkPlayerInfo player_status[MAX_CLIENTS];
+	BufferedMessageManager message_buffer[MAX_CLIENTS];
 	size con_amt;
 }ServerSocket;
 

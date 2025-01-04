@@ -74,3 +74,14 @@ typedef struct Message_s {
 		MessageClientDisconnect c_disconnect;
 	};
 } Message;
+
+
+typedef struct BufferedMessage_s {
+	Message buff_msg;
+	u32 id;
+}BufferedMessage;
+
+typedef struct BufferedMessageManager_s {
+	BufferedMessage buff_messages[MAX_BUFFERED_MESSAGE];
+	size_t buff_len;
+}BufferedMessageManager;
