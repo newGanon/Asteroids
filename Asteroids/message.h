@@ -61,7 +61,7 @@ typedef struct MessageNewClient_s {
 } MessageNewClient;
 
 
-
+// MESSAGE DEFINITION
 typedef struct MessageHeader_s {
 	message_type type;
 	u32 size;
@@ -84,7 +84,7 @@ typedef struct Message_s {
 } Message;
 
 
-
+// stucts to store messages that were dropped or couldn't be send
 typedef struct BufferedMessage_s {
 	Message buff_msg;
 	u32 id;

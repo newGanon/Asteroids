@@ -256,22 +256,7 @@ int init_game() {
     return 0;
 }
 
-int client_online_main(_In_ HINSTANCE hInstance,
-                        _In_opt_ HINSTANCE hPrevInstance,
-                        _In_ LPWSTR lpCmdLine,
-                        _In_ int nShowCmd) {
-    // Initialize game window
-    init_window(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
-
-    // load resources
-    load_resources(&state);
-
-    // Random numbers
-    srand(time(NULL));
-
-    // Timing
-    state.last_time = get_milliseconds();
-
+int client_online_main() {
     // Establish connection to the server, if connect_to_server returns 1, an error has occured or window has been closd
     if (state.running && connect_to_server()) return 1;
 
@@ -350,16 +335,32 @@ int WINAPI wWinMain(
     _In_ LPWSTR lpCmdLine,
     _In_ int nShowCmd) {
 
+    // Initialize the network 
     init_network();
 
+    // Initialize game window
+    init_window(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+
+    // load resources
+    load_resources(&state);
+
+    // Random numbers
+    srand(time(NULL));
+
+    // Timing
+    state.last_time = get_milliseconds();
+
+
     bool offline = false;
-    int ret;
+    int ret = -1;
     if (offline) {
         // TODO: start the server in another thread than the client, so it appears that client plays offline
         ret = 0;
     }
     else {
-        ret = client_online_main(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+        while (ret != 0) {
+            ret = client_online_main();
+        }
     }
     // error occured close the window and handle the error
     if (ret == 1) {
