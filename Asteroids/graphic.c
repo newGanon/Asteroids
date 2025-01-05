@@ -134,7 +134,7 @@ void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const unsigned
     i32 row_elements = (font.width / 8);
     i32 bx = ((i32)c % row_elements) * 8;
     i32 by = (((i32)c / row_elements)) * 8;
-    for (size_t y = 0; y <= (i32)(8 * size.y); y++) {
+    for (size_t y = 0; y < (i32)(8 * size.y); y++) {
         for (size_t x = 0; x < (i32)(8 * size.x); x++) {
             f32 c_x = (bx + (x / size.x));
             f32 c_y = (by + (y / size.y));
@@ -203,7 +203,7 @@ void draw_player(BitMap rb, Player player, f32 map_size) {
 }
 
 
-void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlayerInfo* players_info, BitMap font, f32 map_size) {
+void draw_entities(BitMap rb, BitMap font, EntityManager manager, Player player, NetworkPlayerInfo* players_info, f32 map_size) {
     irect rel_screen_map_rect = get_screen_map_rect(map_size, player.p.pos, player.p.size, rb.height, rb.width);
     // draw body of the entity
     for (size_t i = 0; i < manager.entity_amt; i++)
@@ -411,7 +411,7 @@ void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
 
         // draw score
         _itoa_s(players_info[i].score, str, 100, 10);
-        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.18, cur_pos.y }, 0.05f, rb.height, rb.width), font_size, str);
+        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.16, cur_pos.y }, 0.05f, rb.height, rb.width), font_size, str);
         cur_pos.y -= 0.04;
     }
 }

@@ -22,23 +22,56 @@ bool init_client(Client* client, char* port) {
 		if (*s == INVALID_SOCKET) {
 			continue;
 		}
-		if (connect(*s, ptr->ai_addr, (int)ptr->ai_addrlen) == SOCKET_ERROR) {
+		u_long mode = 1;
+		if (ioctlsocket(*s, FIONBIO, &mode) == SOCKET_ERROR) {
 			closesocket(*s);
 			*s = INVALID_SOCKET;
 			continue;
 		}
-		u_long mode = 1;
-		if (ioctlsocket(*s, FIONBIO, &mode) == SOCKET_ERROR) {
-			continue;
+		if (connect(*s, ptr->ai_addr, (int)ptr->ai_addrlen) == SOCKET_ERROR) {
+			if (WSAGetLastError() != WSAEWOULDBLOCK) {
+				closesocket(*s);
+				*s = INVALID_SOCKET;
+				continue;
+			}
 		}
 		break;
 
 	}
 	freeaddrinfo(result);
-
 	if (*s == INVALID_SOCKET) return false;
 	return true;
 }
+
+bool check_connection_status(SOCKET sock) {
+	fd_set writefds;
+	FD_ZERO(&writefds);
+	FD_SET(sock, &writefds);
+
+	struct timeval timeout;
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 0;
+
+	int result = select(0, NULL, &writefds, NULL, &timeout);
+	if (result > 0) {
+		int error = 0;
+		int len = sizeof(error);
+		if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&error, &len) == 0 && error == 0) {
+			return true;
+		}
+		else {
+			//error
+			return false;
+		}
+	}
+	if (result < 0) {
+		// error
+		return false;
+	}
+	return false;
+}
+
+
 
 bool send_player_state_to_server(Client* c) {
 	Message msg = {
@@ -82,49 +115,37 @@ bool send_client_connect(Client* c, const char* name) {
 bool recieve_server_messages(Client* c, EntityManager* man, NetworkPlayerInfo* players) {
 	Message msg;
 	message_status st;
-	while (st = recieve_message(&c->socket.connection, &msg)) {
+	while ((st = recieve_message(&c->socket.connection, &msg)) == MESSAGE_SUCCESS) {
 		switch (msg.msg_header.type)
 		{
 		case ENTITY_STATE: {
-			Entity e = msg.e_state.entity;
-			// if entity is own player entity only copy certain attributes
-			if (e.id == c->id) {
-				if (c->player.dead) {
+			modify_entity(msg.e_state.entity, man);
+			break;
+		}
+		case CLIENT_ENTITY_STATE: {
+			MessageClientWithEntityState cont = msg.ce_state;
+			players[cont.id].score = cont.score;
+			players[cont.id].dead_timer = cont.dead_timer;
+			players[cont.id].dead = cont.entity.despawn;
+			// local cient
+			if (cont.id == c->id) {
+				// revive and copy all the entity values
+				if(c->player.dead && !cont.entity.despawn) {
 					WireframeMesh mesh = c->player.p.mesh;
-					c->player.p = msg.e_state.entity;
+					c->player.p = cont.entity;
 					c->player.p.mesh = mesh;
 				}
-				else {
-					c->player.p.size = e.size;
-					c->player.p.id = e.id;
-				}
-				continue;
+				// if player is not revived just set certain values
+				else { c->player.p.size = cont.entity.size; }
+				c->player.dead = cont.entity.despawn;
 			}
-			i32 idx = get_entity_idx(*man, e.id);
-			if (idx == -1 && e.despawn) continue;
-			// entity not found, create new entity
-			if (idx == -1) {
-				add_entity(man, msg.e_state.entity);
-				man->entities[man->entity_amt - 1].mesh = create_entity_mesh(e.type, e.size);
-			}
-			// entity found, update entity
-			else {
-				if (e.despawn) { 
-					remove_entity(man, idx); 
-				}
-				else {
-					// HACK!!! TODO: SAFE MESH SOMEWHERE ELSE 
-					e.mesh = man->entities[idx].mesh;
-					overwrite_entity_idx(man, e, idx);
-				}
-			}
+			// remote client
+			else { modify_entity(cont.entity, man); }
 			break;
 		}
 		case CLIENT_STATE: {
 			players[msg.c_state.id].score = msg.c_state.score;
-			players[msg.c_state.id].dead = msg.c_state.dead;
 			players[msg.c_state.id].dead_timer = msg.c_state.dead_timer;
-			if (msg.c_state.id == c->id) c->player.dead = msg.c_state.dead;
 			break;
 		}
 		case CLIENT_WELCOME: {

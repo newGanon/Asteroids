@@ -15,9 +15,10 @@ void fill_screen(BitMap rb, u32 color);
 void draw_line(BitMap rb, ivec2 v0, ivec2 v1, u32 color); 
 
 void draw_player(BitMap rb, Player player, f32 map_size);
-void draw_entities(BitMap rb, EntityManager manager, Player player, NetworkPlayerInfo* players_info, BitMap font, f32 map_size);
+void draw_entities(BitMap rb, BitMap font, EntityManager manager, Player player, NetworkPlayerInfo* players_info, f32 map_size);
 void draw_outline_and_grid(BitMap rb, EntityManager manager, Player player, f32 map_size);
 void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size);
 void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info);
 
 void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const unsigned char c);
+void draw_string(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char* string);

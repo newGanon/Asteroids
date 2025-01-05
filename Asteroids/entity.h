@@ -58,6 +58,7 @@ typedef struct EntityManager_s {
 void add_entity(EntityManager* manager, Entity e);
 void remove_entity(EntityManager* manager, size idx);
 void overwrite_entity_idx(EntityManager* manager, Entity e, size idx);
+void modify_entity(Entity e, EntityManager* man);
 
 void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_time, f32 map_size);
 void entity_collisions(EntityManager* manager, EntityManager* queue, NetworkPlayerInfo* p_info);

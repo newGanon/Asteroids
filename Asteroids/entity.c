@@ -271,3 +271,26 @@ void spawn_asteroid(EntityManager* manager, f32 map_size) {
 	}
 	if(found) add_entity(manager, create_asteroid(pos, vel, size));
 }
+
+
+
+void modify_entity(Entity e, EntityManager* man) {
+	i32 idx = get_entity_idx(*man, e.id);
+	if (idx == -1 && e.despawn) return;
+	// entity not found, create new entity
+	if (idx == -1) {
+		add_entity(man, e);
+		man->entities[man->entity_amt - 1].mesh = create_entity_mesh(e.type, e.size);
+	}
+	// entity found, update entity
+	else {
+		if (e.despawn) {
+			remove_entity(man, idx);
+		}
+		else {
+			// HACK!!! TODO: SAFE MESH SOMEWHERE ELSE 
+			e.mesh = man->entities[idx].mesh;
+			overwrite_entity_idx(man, e, idx);
+		}
+	}
+}

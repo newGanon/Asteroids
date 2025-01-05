@@ -38,7 +38,6 @@ static GameState state = { .running = true };
 #define FRAMESPERSECOND 100
 #define TIMEPERUPDATE 1000/FRAMESPERSECOND
 
-
 u64 get_milliseconds() {
     LARGE_INTEGER freq;
     QueryPerformanceFrequency(&freq);
@@ -75,7 +74,7 @@ void init_render_buffer(HWND hWnd) {
 void tick_player(Client* c, EntityManager* man, f32 map_size) {
 
     u64 delta_time = time_since(state.last_time);
-    if(delta_time >= TIMEPERUPDATE) {\
+    if(delta_time >= TIMEPERUPDATE) {
         state.last_time += delta_time;
         if (!c->player.dead) update_player(c, TIMEPERUPDATE, man, map_size);
         delta_time -= TIMEPERUPDATE;
@@ -86,9 +85,28 @@ void render(BitMap rb, BitMap font, Player* p, EntityManager* man, f32 map_size,
     clear_screen(rb);
     draw_outline_and_grid(rb, *man, *p, map_size);
     if (!p->dead) { draw_player(rb, *p, map_size); }
-    draw_entities(rb, *man, *p, p_info, font, map_size);
+    draw_entities(rb, font, *man, *p, p_info, map_size);
     draw_minimap(rb, *man, *p, map_size);
     draw_scoreboard(rb, font, p_info);
+
+    InvalidateRect(global_window, NULL, FALSE);
+}
+
+u64 connection_timer = 0;
+void render_connecting_screen(BitMap rb, BitMap font, u64 dt) {
+    clear_screen(rb);
+    char str[100];
+    memset(str, 0, 100);
+    strcpy(str, "CONNECTING");
+    connection_timer += dt;
+    if (connection_timer >= 4000) {
+        connection_timer -= 4000;
+    }
+    if (connection_timer >= 1000) str[strnlen(str, 98)] = '.';
+    if (connection_timer >= 2000) str[strnlen(str, 98)] = '.';
+    if (connection_timer >= 3000) str[strnlen(str, 98)] = '.';
+    vec2 font_size = { (rb.width / 1280.0f) * 5.0f, (rb.height / 720.0f) * 5.0f };
+    draw_string(rb, font, (ivec2) { rb.width/2.0f - font_size.x * (5 * 8), rb.height / 2.0f + font_size.y * 8/2}, (vec2) { font_size.x, font_size.y }, str);
 
     InvalidateRect(global_window, NULL, FALSE);
 }
@@ -193,6 +211,50 @@ void load_resources(GameState* s) {
     DeleteObject(bm_handle);
 }
 
+int connect_to_server() {
+    // Try to connect to the server and send player state
+    if (!init_client(&state.client, "27015")) return 1;
+    u64 retry_connection_timer = 0;
+    while (state.running && !check_connection_status(state.client.socket.connection.sock)) {
+        u64 dt = time_since(state.last_time);
+        state.last_time += dt;
+        render_connecting_screen(state.render_buffer, state.font, dt);
+        // enought time has passed, close old connection socked and retry connection
+        retry_connection_timer += dt;
+        if (retry_connection_timer >= 1000) {
+            retry_connection_timer = 0;
+            closesocket(state.client.socket.connection.sock);
+            if (!init_client(&state.client, "27015")) return 1;
+        }
+
+        MSG msg;
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+    }
+    return 0;
+}
+
+int init_game() {
+    Player* p = &state.client.player;
+    p->dead = true;
+    p->acceleration = 0.5f;
+    p->p.mesh = create_entity_mesh(PLAYER, p->p.size);
+
+    state.map_size = 2.0f;
+
+    char name[16] = { "TomTomTomTomTom" };
+    send_client_connect(&state.client, name);
+    //wait for player info from server
+    while (state.client.player.p.size == 0.0f && state.client.player.dead) {
+        if (!recieve_server_messages(&state.client, &state.entity_man, &state.players)) return 1;
+    }
+
+    //TODO make memory allocation for entities dynamic
+    state.entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
+    return 0;
+}
 
 int client_online_main(_In_ HINSTANCE hInstance,
                         _In_opt_ HINSTANCE hPrevInstance,
@@ -204,41 +266,24 @@ int client_online_main(_In_ HINSTANCE hInstance,
     // load resources
     load_resources(&state);
 
-    // Try to connect to the server and send player state
-    if (!init_client(&state.client, "27015")) {
-        // TODO exit or try again;
-    }   
-
-    char name[16] = { "TomTomTomTomTom" };
-
-    send_client_connect(&state.client, name);
-
-    //get player info
-    while (state.client.player.p.size == 0.0f && state.client.player.dead) {
-        if (!recieve_server_messages(&state.client, &state.entity_man, &state.players)) return 1;
-    }
-
     // Random numbers
     srand(time(NULL));
 
     // Timing
     state.last_time = get_milliseconds();
 
-    // Game
+    // Establish connection to the server, if connect_to_server returns 1, an error has occured or window has been closd
+    if (state.running && connect_to_server()) return 1;
+
+    // intialize all game varaibles and wait for initial information from server, if init_game returns 1, an error has occured or window has been closd
+    if (state.running && init_game()) return 1;
+
+    //reset timing for game loop
     Player* p = &state.client.player;
-    p->acceleration = 0.5f;
-    p->p.mesh = create_entity_mesh(PLAYER, p->p.size);
-
-    state.map_size = 2.0f;
-
-    //TODO make memory allocation for entities dynamic
-    state.entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
-
+    state.last_time = get_milliseconds();
     // Main message loop
     while (state.running) {
-        //input
         MSG msg;
-
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
             switch (msg.message) {
@@ -286,7 +331,6 @@ int client_online_main(_In_ HINSTANCE hInstance,
     return 0;
 }
 
-
 bool init_network() {
     WSADATA wsaData;
     return !WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -311,10 +355,15 @@ int WINAPI wWinMain(
     bool offline = false;
     int ret;
     if (offline) {
-        //ret = client_offline_main(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+        // TODO: start the server in another thread than the client, so it appears that client plays offline
+        ret = 0;
     }
     else {
         ret = client_online_main(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+    }
+    // error occured close the window and handle the error
+    if (ret == 1) {
+        PostMessage(global_window, WM_CLOSE, 0, 0);
     }
     return ret;
 }

@@ -22,7 +22,7 @@ ServerState state;
 
 void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg);
 void handle_message_error(ServerSocket* s, EntityManager* man, i32 id);
-void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id);
+void welcome_client(ServerSocket* s, EntityManager* man, u32 id);
  
 bool init_network() {
 	WSADATA wsaData;
@@ -91,10 +91,9 @@ Entity create_player(EntityManager* man, i32 id) {
 	return player;
 }
 
-
 bool accept_connection(ServerState* serv) { 
 	SOCKET s;
-	if (serv->sockets.con_amt >= MAX_CLIENTS) return false;
+	if (serv->sockets.con_amt >= MAX_CLIENTS) return false; 
 	s = accept(serv->sockets.listen, NULL, NULL);
 	if (s == INVALID_SOCKET) return false;
 	u_long mode = 1;
@@ -111,7 +110,7 @@ bool accept_connection(ServerState* serv) {
 	Entity player = create_player(&serv->entity_manager, empty_slot);
 	add_entity(&serv->entity_manager, player);
 
-	send_welcome_message(&serv->sockets, &serv->entity_manager, empty_slot, player);
+	welcome_client(&serv->sockets, &serv->entity_manager, empty_slot, player);
 	return true;
 }
 
@@ -179,7 +178,7 @@ void message_to_player(ServerSocket* s, EntityManager* man, Message* msg, u32 id
 			size_t* buff_len = &s->message_buffer[id].buff_len;
 			if (*buff_len < MAX_BUFFERED_MESSAGE) {
 				if (msg->msg_header.type == ENTITY_STATE && !msg->e_state.entity.despawn) return;
-				if (msg->msg_header.type == CLIENT_STATE && !msg->c_state.dead) return;
+				else if (msg->msg_header.type == CLIENT_STATE) return;
  				buff_messages[*buff_len].buff_msg = *msg;
 				buff_messages[*buff_len].id = id;
 				*buff_len += 1;
@@ -208,6 +207,8 @@ void broadcast_client_disconnect_message(ServerSocket* s, EntityManager* man, u3
 void handle_message_error(ServerSocket* s, EntityManager* man , u32 id) {
 	s->con_amt--;
 	s->connections[id] = (NetworkSocket){ 0 };
+	s->player_status[id] = (NetworkPlayerInfo){ 0 };
+	s->message_buffer[id].buff_len = 0;
 
 	Entity* e = &man->entities[get_entity_idx(*man, id)];
 	e->dirty = true;
@@ -217,7 +218,7 @@ void handle_message_error(ServerSocket* s, EntityManager* man , u32 id) {
 }
 
 
-void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id, Entity player) {
+void welcome_client(ServerSocket* s, EntityManager* man, u32 id, Entity player) {
 	Message msg;
 	msg = (Message){
 				.msg_header = {
@@ -228,7 +229,6 @@ void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id, Entity pl
 	};
 	message_to_player(s, man, &msg, id);
 
-	// TODO: MAKE THIS OWN METHOD
 	//send all already connected clients
 	for (size_t i = 0; i < MAX_CLIENTS; i++) {
 		if (s->connections[i].sock == 0 || id == i) continue;
@@ -243,48 +243,8 @@ void send_welcome_message(ServerSocket* s, EntityManager* man, u32 id, Entity pl
 		memcpy(msg.c_new.name, s->player_status[i].name, MAX_NAME_LENGTH);
 		message_to_player(s, man, &msg, id);
 	}
-
-	msg = (Message){
-				.msg_header = {
-					.size = sizeof(MessageHeader) + sizeof(MessageEntityState),
-					.type = ENTITY_STATE,
-				},
-				.e_state.entity = player,
-	};
-	message_to_player(s, man, &msg, id);
-
-	NetworkPlayerInfo info = s->player_status[id];
-	msg = (Message){
-	.msg_header = {
-			.size = sizeof(MessageHeader) + sizeof(MessageClientState),
-			.type = CLIENT_STATE,
-		},
-		.c_state.id = id,
-		.c_state.score = info.score,
-		.c_state.dead = info.dead,
-		.c_state.dead_timer = info.dead_timer,
-	};
-
 }
 
-
-void send_player_states_to_client(ServerSocket* s, EntityManager* man) {
-	for (size_t i = 0; i < MAX_CLIENTS; i++) {
-		if (s->connections[i].sock == 0) continue;
-		Message msg = (Message){
-			.msg_header = {
-				.size = sizeof(MessageHeader) + sizeof(MessageClientState),
-				.type = CLIENT_STATE,
-			},
-			.c_state.id = i,
-			.c_state.score = s->player_status[i].score,
-			.c_state.dead = s->player_status[i].dead,
-			.c_state.dead_timer = s->player_status[i].dead_timer,
-		};
-
-		broadcast_message(s, man, &msg);
-	}
-}
 
 void send_entities_to_clients(ServerSocket* s, EntityManager* man) {
 	Message msg;
@@ -292,23 +252,58 @@ void send_entities_to_clients(ServerSocket* s, EntityManager* man) {
 		Entity* e = &man->entities[i];
 		if (e->dirty) {
 			e->dirty = false;
-			msg = (Message){
-				.msg_header = {
-					.size = sizeof(MessageHeader) + sizeof(MessageEntityState),
-					.type = ENTITY_STATE,
-				},
-				.e_state.entity = *e,
-			};
-
+			// Send additional information when entity is player
+			if (e->type == PLAYER) {
+				u32 id = e->id;
+				msg = msg = (Message){
+					.msg_header = {
+						.size = sizeof(MessageHeader) + sizeof(MessageClientWithEntityState),
+						.type = CLIENT_ENTITY_STATE,
+					},
+					.ce_state = {
+						.id = id,
+						.score = s->player_status[id].score,
+						.dead_timer = s->player_status[i].dead_timer,
+						.entity = *e,
+					},
+				};
+			}
+			else {
+				msg = (Message){
+					.msg_header = {
+						.size = sizeof(MessageHeader) + sizeof(MessageEntityState),
+						.type = ENTITY_STATE,
+					},
+					.e_state.entity = *e,
+				};
+			}
 			broadcast_message(s, man, &msg);
 
 			// If despawn is true remove the entity
 			if (e->despawn) remove_entity(man, i); 
 		}
 	}
+	// send the information of the dead clients that dont have an active entity 
+	for (size_t i = 0; i < MAX_CLIENTS; i++) {
+		NetworkPlayerInfo p_info = s->player_status[i];
+		if (p_info.connected && p_info.dead) {
+			Message msg = (Message){
+			.msg_header = {
+				.size = sizeof(MessageHeader) + sizeof(MessageClientState),
+				.type = CLIENT_STATE,
+			},
+			.c_state.id = i,
+			.c_state.score = s->player_status[i].score,
+			.c_state.dead_timer = s->player_status[i].dead_timer,
+			};
+
+			broadcast_message(s, man, &msg);
+		}
+	}
 }
 
 void resend_buffered_messages(ServerSocket* s, EntityManager* man, BufferedMessageManager* buff_man) {
+	bool removed = false;
 	for (size_t c = 0; c < MAX_CLIENTS; c++) {
 		if (!s->player_status[c].connected) continue;
 		BufferedMessage* buff_msgs = buff_man[c].buff_messages;
@@ -321,13 +316,21 @@ void resend_buffered_messages(ServerSocket* s, EntityManager* man, BufferedMessa
 			case (MESSAGE_EMPTY): { break; }
 			case (MESSAGE_ERROR): { handle_message_error(s, man, c); break; }
 			case (MESSAGE_SUCCESS): {
-				memmove(&buff_msgs[i], &buff_msgs[i + 1], sizeof(BufferedMessage) * (*buff_len - (i + 1)));
-				*buff_len -= 1;
-				i--;
+				removed = true;
+				buff_msgs[i].id = -1;
 				break;
 			}
 			}
 		}
+		// move elements to the front of the buffer
+		size_t free_pos = 0;
+		for (size_t i = 0; i < *buff_len; i++) {
+  			if(buff_msgs[i].id != -1) {
+				buff_msgs[free_pos] = buff_msgs[i];
+				free_pos++;
+			}
+		}
+		*buff_len = free_pos;
 	}
 }
 
@@ -421,7 +424,7 @@ i32 server_main() {
 
 		// Send Messages
 		send_entities_to_clients(&state.sockets, &state.entity_manager);
-		send_player_states_to_client(&state.sockets, &state.entity_manager);
+		//send_player_states_to_client(&state.sockets, &state.entity_manager);
 
 		resend_buffered_messages(&state.sockets, &state.entity_manager, &state.sockets.message_buffer);
 	}

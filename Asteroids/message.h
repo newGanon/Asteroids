@@ -10,6 +10,7 @@ typedef enum message_type_e {
 
 	// SERVER TO CLIENT
 	ENTITY_STATE,
+	CLIENT_ENTITY_STATE,
 	CLIENT_STATE,
 	CLIENT_WELCOME,
 	CLIENT_DISCONNECT,
@@ -33,10 +34,16 @@ typedef struct MessageEntityState_s {
 	Entity entity;
 } MessageEntityState;
 
+typedef struct MessageClientWithEntityState_s {
+	u32 id;
+	u32 score;
+	i32 dead_timer;
+	Entity entity;
+}MessageClientWithEntityState;
+
 typedef struct MessageClientState_s {
 	u32 id;
 	u32 score;
-	bool dead;
 	i32 dead_timer;
 }MessageClientState;
 
@@ -68,12 +75,14 @@ typedef struct Message_s {
 		MessageClientConnect c_connect;
 		// SERVER TO CLIENT
 		MessageEntityState e_state;
+		MessageClientWithEntityState ce_state;
 		MessageClientState c_state;
 		MessageNewClient c_new;
 		MessageClientWelcome c_welcome;
 		MessageClientDisconnect c_disconnect;
 	};
 } Message;
+
 
 
 typedef struct BufferedMessage_s {
