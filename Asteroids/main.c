@@ -180,13 +180,13 @@ int init_window(_In_ HINSTANCE hInstance,
 }
 
 
-void load_resources(GameState* s) {
+int load_resources(GameState* s) {
     // load font
     BitMap* font = &s->font;
 
     HBITMAP bm_handle = LoadImage(NULL, L"font.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION);
 
-    if (!bm_handle) return;
+    if (!bm_handle) return 1;
 
     BITMAP bmp;
     GetObject(bm_handle, sizeof(BITMAP), &bmp);
@@ -207,8 +207,10 @@ void load_resources(GameState* s) {
     };
     HDC hdc = GetDC(global_window);
     GetDIBits(hdc, bm_handle, 0, bmp.bmHeight, font->pixels, &bm_info, DIB_RGB_COLORS);
+    if (!font->pixels) return 1;
     ReleaseDC(global_window, hdc);
     DeleteObject(bm_handle);
+    return 0;
 }
 
 int connect_to_server() {
@@ -316,9 +318,9 @@ int client_online_main() {
     return 0;
 }
 
-bool init_network() {
+int init_network() {
     WSADATA wsaData;
-    return !WSAStartup(MAKEWORD(2, 2), &wsaData);
+    return WSAStartup(MAKEWORD(2, 2), &wsaData);
 }
 
 /// <summary>
@@ -336,20 +338,19 @@ int WINAPI wWinMain(
     _In_ int nShowCmd) {
 
     // Initialize the network 
-    init_network();
+    if(init_network()) return 1;
 
     // Initialize game window
-    init_window(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+    if(init_window(hInstance, hPrevInstance, lpCmdLine, nShowCmd)) return 1;
 
     // load resources
-    load_resources(&state);
+    if(load_resources(&state)) return 1;
 
     // Random numbers
     srand(time(NULL));
 
     // Timing
     state.last_time = get_milliseconds();
-
 
     bool offline = false;
     int ret = -1;
