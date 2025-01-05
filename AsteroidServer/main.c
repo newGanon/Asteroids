@@ -76,21 +76,6 @@ i32 seach_empty_slot(ServerSocket* s) {
 	}
 }
 
-Entity create_player(EntityManager* man, i32 id) {
-	Entity player = (Entity){
-	.ang = 0.0,
-	.id = id,
-	.despawn = false,
-	.dirty = true,
-	.pos = (vec2) {0, 0},
-	.size = 0.05,
-	.type = PLAYER,
-	.vel = 0,
-	.accelerating = false,
-	};
-	return player;
-}
-
 bool accept_connection(ServerState* serv) { 
 	SOCKET s;
 	if (serv->sockets.con_amt >= MAX_CLIENTS) return false; 
@@ -107,7 +92,7 @@ bool accept_connection(ServerState* serv) {
 	serv->sockets.con_amt++;
 	serv->sockets.player_status[empty_slot].connected = true;
 
-	Entity player = create_player(&serv->entity_manager, empty_slot);
+	Entity player = create_player((vec2) { 0, 0 }, 0.0f, 0.05, empty_slot);
 	add_entity(&serv->entity_manager, player);
 
 	welcome_client(&serv->sockets, &serv->entity_manager, empty_slot, player);
@@ -204,17 +189,34 @@ void broadcast_client_disconnect_message(ServerSocket* s, EntityManager* man, u3
 	broadcast_message(s, man, &msg);
 }
 
-void handle_message_error(ServerSocket* s, EntityManager* man , u32 id) {
+void disconnect_client(ServerSocket* s, EntityManager* man, u32 id) {
 	s->con_amt--;
 	s->connections[id] = (NetworkSocket){ 0 };
 	s->player_status[id] = (NetworkPlayerInfo){ 0 };
 	s->message_buffer[id].buff_len = 0;
 
-	Entity* e = &man->entities[get_entity_idx(*man, id)];
-	e->dirty = true;
-	e->despawn = true;
+	// remove the player entity
+	i32 idx = get_entity_idx(*man, id);
+	if (idx != -1) {
+		Entity* p = &man->entities[get_entity_idx(*man, id)];
+		p->dirty = true;
+		p->despawn = true;
+	}
+	// remove all entities belonging to the player
+	for (size_t i = 0; i < man->entity_amt; i++) {
+		Entity* e = &man->entities[i];
+		if (e->source_id == id) {
+			e->dirty = true;
+			e->despawn = true;
+		}
+	}
 
 	broadcast_client_disconnect_message(s, man, id);
+}
+
+
+void handle_message_error(ServerSocket* s, EntityManager* man , u32 id) {
+	disconnect_client(s, man, id);
 }
 
 
@@ -416,7 +418,7 @@ i32 server_main() {
 					player_info->dead_timer = 0;
 					player_info->dead = false;
 
-					Entity player = create_player(&state.entity_manager, i);
+					Entity player = create_player((vec2) { 0, 0 }, 0.0f, 0.05, i);
 					add_entity(&state.entity_manager, player);
 				}
 			}

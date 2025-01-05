@@ -28,6 +28,21 @@ i32 get_entity_idx(EntityManager manager, u32 id) {
 	return -1;
 }
 
+Entity create_player(vec2 pos, f32 ang, f32 size, i32 id) {
+	return (Entity){
+	.ang = ang,
+	.id = id,
+	.despawn = false,
+	.dirty = true,
+	.pos = pos,
+	.size = size,
+	.type = PLAYER,
+	.vel = 0.0f,
+	.accelerating = false,
+	.source_id = -1,
+	};
+}
+
 
 Entity create_asteroid(vec2 pos, vec2 vel, f32 size) {
 	return (Entity) {
@@ -38,6 +53,7 @@ Entity create_asteroid(vec2 pos, vec2 vel, f32 size) {
 		.mesh = 0,
 		.dirty = true,
 		.id = id++,
+		.source_id = -1,
 	};	
 }
 
@@ -50,6 +66,7 @@ Entity create_particle_round(vec2 pos, vec2 vel, f32 size, i32 lifetime) {
 		.lifetime = lifetime,
 		.dirty = true,
 		.id = id++,
+		.source_id = -1,
 	};
 }
 

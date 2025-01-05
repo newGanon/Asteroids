@@ -35,7 +35,7 @@ typedef struct Entity_s {
 		// Bullets
 		struct {
 			i32 lifetime;
-			u32 source_id;
+			i32 source_id;
 		};
 		// Asteroids 
 		//struct {};
@@ -66,6 +66,7 @@ void entity_collisions(EntityManager* manager, EntityManager* queue, NetworkPlay
 void spawn_asteroid(EntityManager* manager, f32 map_size);
 void spawn_explosion(EntityManager* manager, vec2 pos, size amt);
 
+Entity create_player(vec2 pos, f32 ang, f32 size, i32 id);
 Entity create_asteroid(vec2 pos, vec2 vel, f32 size);
 Entity create_bullet(vec2 pos, vec2 vel, f32 size, u32 source_id);
 Entity create_particle_round(vec2 pos, vec2 vel, f32 size, i32 lifetime);
