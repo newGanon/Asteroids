@@ -285,7 +285,7 @@ int main_menu(char* playername, char* host, char* port){
     // gui elements
     TextBox inputs[3];
     char header_strings[3][50] = { "Player Name", "Host", "Port" };
-    char default_textbox_values[3][50] = { "Insert Name", "", "" };
+    char default_textbox_values[3][50] = { "Insert Name", "Insert Host", "Insert Port" };
     char predefined_textbox_values[3][50] = { "", "localhost", "27015" };
     for (size_t i = 0; i < 3; i++) {
         inputs[i] = (TextBox){.id = i, .pos_rect = {.bl = (vec2) { 0.5f, 0.8f - (i * 0.2f)}, .tr = (vec2) {1.4f, 0.9f - (i * 0.2f)}}};
