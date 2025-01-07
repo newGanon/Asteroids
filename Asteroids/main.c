@@ -151,7 +151,6 @@ int init_window(_In_ HINSTANCE hInstance,
         return 1;
     }
 
-
     // Create Window
     HWND hWnd = CreateWindowEx(
         WS_EX_OVERLAPPEDWINDOW,
@@ -277,9 +276,11 @@ char get_ascii_from_vk(char vk, bool shift_pressed) {
 }
 
 int main_menu(char* playername, char* host, char* port){
+    
     bool confirmed = false;
     // mouse controls
-    bool left_mb_pressed = false;
+    bool lmb_down = false;
+    bool lmb_was_down = false;
     ivec2 mouse_pos = { -1, -1 };
     // gui elements
     TextBox inputs[3];
@@ -291,13 +292,14 @@ int main_menu(char* playername, char* host, char* port){
         strcpy(inputs[i].header_string, header_strings[i]);
         strcpy(inputs[i].input_text, predefined_textbox_values[i]);
         inputs[i].input_text_len = strlen(predefined_textbox_values[i]);
+        inputs[i].cursor_pos = inputs[i].input_text_len;
         strcpy(inputs[i].default_text, default_textbox_values[i]);
     }
     Button connect_button = { .id = 4, .default_text = "CONNECT", .pos_rect = {.bl = (vec2) { 0.5f, 0.1f }, .tr = (vec2) { 1.4f, 0.2f } } };
-    // TODO; make a queue for all keys pressed so no keys get lost
+    // TODO: make a queue for all keys pressed so no keys get lost
     char key_pressed = -1;
 
-    while (!confirmed && state.running) {
+    while (state.running) {
         key_pressed = -1;
         MSG msg;
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
@@ -306,13 +308,13 @@ int main_menu(char* playername, char* host, char* port){
                 bool was_down = (msg.lParam >> 30) & 1;
                 bool is_down = ((msg.lParam >> 31) & 1) == 0;
                 // enter key
-                if (msg.wParam == VK_RETURN && !was_down && is_down) { confirmed = true; } 
+                if (msg.wParam == VK_RETURN && !was_down && is_down) { confirmed = true; }
                 // other key
-                else { 
+                else {
                     bool uppercase = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
                     bool caps = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
                     key_pressed = get_ascii_from_vk(msg.wParam, uppercase != caps);
-                } 
+                }
                 break;
             }
             case WM_MOUSEMOVE: {
@@ -324,11 +326,11 @@ int main_menu(char* playername, char* host, char* port){
                 break;
             }
             case WM_LBUTTONDOWN: {
-                left_mb_pressed = true;
+                lmb_down = true;
                 break;
             }
             case WM_LBUTTONUP: {
-                left_mb_pressed = false;
+                lmb_down = false;
                 break;
             }
             default: {
@@ -340,34 +342,37 @@ int main_menu(char* playername, char* host, char* port){
         // update gui elements
         BitMap rb = state.render_buffer;
         bool updated = false;
+        // if the user let go of the left mouse button over the connect button, then start connecting the player
+        if (confirmed && lmb_was_down && !lmb_down)
+            break;
         // button
-        updated |= button_update(rb, &connect_button, mouse_pos, left_mb_pressed, &gui_element_focused);
-        if (button_update(rb, &connect_button, mouse_pos, left_mb_pressed, &gui_element_focused)) {
+        if (button_update(rb, &connect_button, mouse_pos, lmb_down, lmb_was_down, &gui_element_focused)) {
             confirmed = true;
-            updated = true;
+            updated |= true;
         }
         // text boxes
-        for (size_t i = 0; i < 3; i++) { updated |= textbox_update(rb, &inputs[i], mouse_pos, left_mb_pressed, &gui_element_focused, key_pressed); }
+        for (size_t i = 0; i < 3; i++) { updated |= textbox_update(rb, &inputs[i], mouse_pos, lmb_down, &gui_element_focused, key_pressed); }
         // if user clicked on the screen but not on a gui element, unfocus
-        if (left_mb_pressed && !updated) gui_element_focused = -1;
+        if (lmb_down && !updated) gui_element_focused = -1;
 
         if (confirmed && inputs[0].input_text_len == 0) {
             confirmed = false;
         }
 
+        lmb_was_down = lmb_down;
         // render gui elements
         clear_screen(rb);
         for (size_t i = 0; i < 3; i++) {
-            textbox_render(rb, state.font, inputs[i], left_mb_pressed, gui_element_focused);
+            textbox_render(rb, state.font, inputs[i], lmb_down, gui_element_focused);
         }
-        button_render(rb, state.font, connect_button, left_mb_pressed, gui_element_focused);
+        button_render(rb, state.font, connect_button, lmb_down, gui_element_focused);
 
         InvalidateRect(global_window, NULL, FALSE);
     }
 
-    memcpy(playername, inputs[0].input_text, inputs[0].input_text_len);
-    memcpy(host, inputs[1].input_text, inputs[1].input_text_len);
-    memcpy(port, inputs[2].input_text, inputs[2].input_text_len);
+    strcpy(playername, inputs[0].input_text, inputs[0].input_text_len);
+    strcpy(host, inputs[1].input_text, inputs[1].input_text_len);
+    strcpy(port, inputs[2].input_text, inputs[2].input_text_len);
     return 0;
 }
 

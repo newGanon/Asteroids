@@ -149,9 +149,9 @@ void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const unsigned
     i32 by = (((i32)c / row_elements)) * 8;
     for (size_t y = 0; y <= (i32)(8 * size.y); y++) {
         for (size_t x = 0; x < (i32)(8 * size.x); x++) {
-            f32 c_x = (bx + (x / (size.x)));
-            f32 c_y = (by + (y / size.y));
-            u32 c = font.pixels[(i32)c_y * font.width + (i32)c_x];
+            i32 c_x = (i32)(bx + (x / size.x));
+            i32 c_y = (i32)(by + (y / size.y));
+            u32 c = font.pixels[c_y * font.width + c_x];
             i32 rbx = (pos.x + x);
             i32 rby = (pos.y + y);
             if (c && rbx > 0 && rbx < rb.width && rby > 0 && rby < rb.height && point_inside_irect((ivec2) {rbx, rby}, rect)) {

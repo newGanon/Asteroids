@@ -1,16 +1,16 @@
 #include "gui.h"
 
-bool button_update(BitMap rb, Button* b, ivec2 mouse_pos, bool mouse_clicked, i32* current_focus) {
+bool button_update(BitMap rb, Button* b, ivec2 mouse_pos, bool lmb_down, bool lmb_was_down, i32* current_focus) {
 	irect screen_rect = { .bl = pos_to_screen(b->pos_rect.bl, 0.05f, rb.height, rb.width),
 						  .tr = pos_to_screen(b->pos_rect.tr, 0.05f, rb.height, rb.width) };
-	if (mouse_clicked && point_inside_irect(mouse_pos, screen_rect)) {
+	if (lmb_down && point_inside_irect(mouse_pos, screen_rect)) {
 		*current_focus = b->id;
 		return true;
 	}
 	return false;
 }
 
-bool textbox_update(BitMap rb, TextBox* t, ivec2 mouse_pos, bool mouse_clicked, i32* current_focus, char key_pressed) {
+bool textbox_update(BitMap rb, TextBox* t, ivec2 mouse_pos, bool lmb_down, i32* current_focus, char key_pressed) {
 	irect screen_rect = { .bl = pos_to_screen(t->pos_rect.bl, 0.05f, rb.height, rb.width),
 					      .tr = pos_to_screen(t->pos_rect.tr, 0.05f, rb.height, rb.width) };
 
@@ -20,15 +20,17 @@ bool textbox_update(BitMap rb, TextBox* t, ivec2 mouse_pos, bool mouse_clicked, 
 		if (key_pressed == 8) {
 			if (t->input_text_len > 0) {
 				t->input_text[--t->input_text_len] = '\0';
+				t->cursor_pos--;
 			}
 		}
 		// normal ascii code
 		else if (t->input_text_len < MAX_NAME_LENGTH) {
 			t->input_text[t->input_text_len++] = key_pressed;
+			t->cursor_pos++;
 		}
 	}
 	// check mouse click
-	if (mouse_clicked && point_inside_irect(mouse_pos, screen_rect)) {
+	if (lmb_down && point_inside_irect(mouse_pos, screen_rect)) {
 		*current_focus = t->id;
 		return true;
 	}
@@ -73,6 +75,13 @@ void textbox_render(BitMap rb, BitMap font,TextBox t, bool mouse_clicked, i32 cu
 		vec2 font_size = { (rb.width / 1280.0f) * 4.0f, (rb.height / 720.0f) * 4.0f };
 		ivec2 pos = { textbox_rect.bl.x + font_size.x * 0.5f * 8, textbox_rect.bl.y + font_size.x * 0.5f * 8 };
 		draw_string(rb, font, pos, font_size, t.input_text, 0x00FFFFFF, textbox_rect);
+		if (current_focus == t.id) {
+			ivec2 cursor_pos = { pos.x + (t.cursor_pos - 0.2f) * font_size.x * 8, (pos.y)};
+			vec2 cursor_size = { font_size.x * 0.8f, font_size.y * 1.5f };
+			// HACK!!! because pipe symbol doesnt have its own 8 pixel square
+			textbox_rect.tr.x = MIN(textbox_rect.tr.x, cursor_pos.x + font_size.x * 4);
+			draw_character(rb, font, cursor_pos, cursor_size, 's' + 64, 0x005E5E5E, textbox_rect);
+		} 
 	}
 
 
