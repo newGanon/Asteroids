@@ -19,6 +19,7 @@ typedef struct Player_s {
 
 	bool dead;
 	Input input;
+	char* name[MAX_NAME_LENGTH];
 } Player;
 
 void update_player(Player* player, u64 delta_time, EntityManager* manager, f32 map_size);

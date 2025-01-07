@@ -1,5 +1,4 @@
 #include "graphic.h"
-#include "math.h"
 
 void clear_screen(BitMap rb) {
     memset(rb.pixels, 0, rb.width * rb.height * sizeof(u32));
@@ -78,7 +77,9 @@ void draw_line_in_rect(BitMap rb, ivec2 v0, ivec2 v1, u32 color, irect rect) {
     }
 }
 
-void fill_rectangle(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
+void fill_rect(BitMap rb, irect r, u32 color) {
+    ivec2 v0 = r.bl;
+    ivec2 v1 = r.tr;
     if (v0.x > v1.x) {
         f32 tmp = v0.x;
         v0.x = v1.x;
@@ -102,7 +103,7 @@ void fill_rectangle(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
     }
 }
 
-void fill_rectangle_in_rect(BitMap rb, ivec2 v0, ivec2 v1, u32 color, irect rect) {
+void fill_rect_in_rect(BitMap rb, ivec2 v0, ivec2 v1, u32 color, irect rect) {
     if (v0.x > v1.x) {
         f32 tmp = v0.x;
         v0.x = v1.x;
@@ -128,32 +129,44 @@ void fill_rectangle_in_rect(BitMap rb, ivec2 v0, ivec2 v1, u32 color, irect rect
     }
 }
 
+void draw_rect(BitMap rb, irect r, u32 color) {
+    ivec2 pi0 = r.bl;
+    ivec2 pi1 = { .x = r.bl.x, .y = r.tr.y };
+    ivec2 pi2 = r.tr;
+    ivec2 pi3 = { .x = r.tr.x, .y = r.bl.y };
 
-void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const unsigned char c) {
+    draw_line(rb, pi0, pi1, color);
+    draw_line(rb, pi1, pi2, color);
+    draw_line(rb, pi2, pi3, color);
+    draw_line(rb, pi3, pi0, color);
+}
+
+
+void draw_character(BitMap rb, BitMap font, ivec2 pos, vec2 size, const unsigned char c, u32 color, irect rect) {
     if (c > 255) return;
     i32 row_elements = (font.width / 8);
     i32 bx = ((i32)c % row_elements) * 8;
     i32 by = (((i32)c / row_elements)) * 8;
-    for (size_t y = 0; y < (i32)(8 * size.y); y++) {
+    for (size_t y = 0; y <= (i32)(8 * size.y); y++) {
         for (size_t x = 0; x < (i32)(8 * size.x); x++) {
-            f32 c_x = (bx + (x / size.x));
+            f32 c_x = (bx + (x / (size.x)));
             f32 c_y = (by + (y / size.y));
-            u32 color = font.pixels[(i32)c_y * font.width + (i32)c_x];
+            u32 c = font.pixels[(i32)c_y * font.width + (i32)c_x];
             i32 rbx = (pos.x + x);
             i32 rby = (pos.y + y);
-            if (color && rbx > 0 && rbx < rb.width && rby > 0 && rby < rb.height) {
+            if (c && rbx > 0 && rbx < rb.width && rby > 0 && rby < rb.height && point_inside_irect((ivec2) {rbx, rby}, rect)) {
                 rb.pixels[rby * rb.width + rbx] = color;
             }
         }
     }
 }
 
-void draw_string(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char* string) {
+void draw_string(BitMap rb, BitMap font, ivec2 pos, vec2 size, const char* string, u32 color, irect rect) {
     ivec2 cursor = pos;
     while (*string) {
         const unsigned char c = *string++;
         if (c == '\n') cursor.y -= size.y * 8;
-        draw_character(rb, font, cursor, size, c);
+        draw_character(rb, font, cursor, size, c, color, rect);
         cursor.x += size.x * 8;
     }
 }
@@ -217,18 +230,18 @@ void draw_entities(BitMap rb, BitMap font, EntityManager manager, Player player,
             case BULLET: {
                 ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, player.p.size, rb.height, rb.width);
                 ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, player.p.size, rb.height, rb.width);
-                fill_rectangle_in_rect(rb, p0, p1, 0x00FFFFFF, rel_screen_map_rect);
+                fill_rect_in_rect(rb, p0, p1, 0x00FFFFFF, rel_screen_map_rect);
                 break;
             }
             case ASTEROID: {
                 if (e.mesh.point_amt == 0) return;
-                draw_mesh_in_rect(rb, player.p.size, e.mesh, e.pos, 0, e.size, 0x00FFFFFF, rel_screen_map_rect);
+                draw_mesh_in_rect(rb, player.p.size, e.mesh, e.pos, e.ang, e.size, 0x00FFFFFF, rel_screen_map_rect);
                 break;
             }
             case PARTICLE_SQUARE: {
                 ivec2 p0 = pos_to_screen((vec2) { e.pos.x - e.size, e.pos.y - e.size }, player.p.size, rb.height, rb.width);
                 ivec2 p1 = pos_to_screen((vec2) { e.pos.x + e.size, e.pos.y + e.size }, player.p.size, rb.height, rb.width);
-                fill_rectangle_in_rect(rb, p0, p1, 0x00FFFFFF, rel_screen_map_rect);
+                fill_rect_in_rect(rb, p0, p1, 0x00FFFFFF, rel_screen_map_rect);
                 break;
             }
             case PLAYER: {
@@ -269,7 +282,8 @@ void draw_entities(BitMap rb, BitMap font, EntityManager manager, Player player,
 
         vec2 string_start_pos = (vec2){ p.pos.x + offset.x, p.pos.y + offset.y};
         
-        draw_string(rb, font, pos_to_screen(vec2_transform_relative_player(string_start_pos, player.p.size, player.p.pos), player.p.size, rb.height, rb.width), font_size, players_info[i].name);
+        irect screen_rect = { .bl = (ivec2){0.0f, 0.0f}, .tr = (ivec2){rb.width, rb.height} };
+        draw_string(rb, font, pos_to_screen(vec2_transform_relative_player(string_start_pos, player.p.size, player.p.pos), player.p.size, rb.height, rb.width), font_size, players_info[i].name, 0x00FFFFFF, screen_rect);
     }
 }
 
@@ -324,17 +338,12 @@ void draw_outline_and_grid(BitMap rb, EntityManager manager, Player player, f32 
 void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size) {
     f32 minimap_size = 0.3;
     vec2 offset = { 0.05f, 0.95f };
-    ivec2 pi0 = pos_to_screen((vec2) { offset.x, offset.y - minimap_size }, 0.05f, rb.height, rb.width);
-    ivec2 pi1 = pos_to_screen((vec2) { offset.x, offset.y }, 0.05f, rb.height, rb.width);
-    ivec2 pi2 = pos_to_screen((vec2) { minimap_size + offset.x, offset.y }, 0.05f, rb.height, rb.width);
-    ivec2 pi3 = pos_to_screen((vec2) { minimap_size + offset.x, offset.y - minimap_size }, 0.05f, rb.height, rb.width);
+    ivec2 bl = pos_to_screen((vec2) { offset.x, offset.y - minimap_size }, 0.05f, rb.height, rb.width);
+    ivec2 tr = pos_to_screen((vec2) { minimap_size + offset.x, offset.y }, 0.05f, rb.height, rb.width);
 
-    fill_rectangle(rb, pi0, pi2, 0x00000000);
-
-    draw_line(rb, pi0, pi1, 0x00FFFFFF);
-    draw_line(rb, pi1, pi2, 0x00FFFFFF);
-    draw_line(rb, pi2, pi3, 0x00FFFFFF);
-    draw_line(rb, pi3, pi0, 0x00FFFFFF);
+    irect rect = { .bl = bl, .tr = tr };
+    fill_rect(rb, rect, 0x00000000);
+    draw_rect(rb, rect, 0x00FFFFFF);
 
     irect rel_screen_rect = {
         .bl = pos_to_screen((vec2) { offset.x, offset.y - minimap_size }, 0.05f, rb.height, rb.width),
@@ -371,28 +380,24 @@ void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size)
 void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
     vec2 loeaderboard_size = {0.25f, 0.5f};
     vec2 offset = {1.47, 0.95};
-    ivec2 pi0 = pos_to_screen((vec2) { offset.x, offset.y - loeaderboard_size.y }, 0.05f, rb.height, rb.width);
-    ivec2 pi1 = pos_to_screen((vec2) { offset.x, offset.y }, 0.05f, rb.height, rb.width);
-    ivec2 pi2 = pos_to_screen((vec2) { loeaderboard_size.x + offset.x, offset.y }, 0.05f, rb.height, rb.width);
-    ivec2 pi3 = pos_to_screen((vec2) { loeaderboard_size.x + offset.x, offset.y - loeaderboard_size.y }, 0.05f, rb.height, rb.width);
+    ivec2 bl = pos_to_screen((vec2) { offset.x, offset.y - loeaderboard_size.y }, 0.05f, rb.height, rb.width);
+    ivec2 tr = pos_to_screen((vec2) { loeaderboard_size.x + offset.x, offset.y }, 0.05f, rb.height, rb.width);
 
-    fill_rectangle(rb, pi0, pi2, 0x00000000);
+    irect rect = { .bl = bl, .tr = tr };
+    fill_rect(rb, rect, 0x00000000);
+    draw_rect(rb, rect, 0x00FFFFFF);
 
-    draw_line(rb, pi0, pi1, 0x00FFFFFF);
-    draw_line(rb, pi1, pi2, 0x00FFFFFF);
-    draw_line(rb, pi2, pi3, 0x00FFFFFF);
-    draw_line(rb, pi3, pi0, 0x00FFFFFF);
 
     vec2 font_size = { rb.width / 1280.0f, rb.height / 720.0f };
     const char* title = "SCOREBOARD";
-    draw_string(rb, font, pos_to_screen((vec2){ 1.49, 0.90 }, 0.05f, rb.height, rb.width), vec2_scale(font_size, 2.0f), title);
+    draw_string(rb, font, pos_to_screen((vec2){ 1.49, 0.90 }, 0.05f, rb.height, rb.width), vec2_scale(font_size, 2.0f), title, 0x00FFFFFF, rect);
     //draw underscore
     size_t tile_len = strlen(title);
     vec2 underline_size = { 2.0f, 1.5f };
     // draw underline, -1 because im drawing all underscor symbols twice as thick to make it consistent with very small screens
     for (size_t i = 0; i < tile_len-1; i++) {
         ivec2 pos = pos_to_screen((vec2) { 1.485, 0.88 }, 0.05f, rb.height, rb.width);
-        draw_character(rb, font, (ivec2) { (i32)(pos.x + i * underline_size.x * font_size.x * 8), pos.y }, (vec2) {font_size.x * underline_size.x * 2.0f, font_size.y * underline_size.y}, 196);
+        draw_character(rb, font, (ivec2) { (i32)(pos.x + i * underline_size.x * font_size.x * 8), pos.y }, (vec2) {font_size.x * underline_size.x * 2.0f, font_size.y * underline_size.y}, 196, 0x00FFFFFF, rect);
     }
 
     vec2 cur_pos = { 1.50, 0.85 };
@@ -403,15 +408,15 @@ void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
         if (players_info[i].dead) {
             //draw death timer
             _itoa_s(players_info[i].dead_timer, str, 100, 10);
-            draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x, cur_pos.y + 0.02f }, 0.05f, rb.height, rb.width), font_size, str);
+            draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x, cur_pos.y + 0.02f }, 0.05f, rb.height, rb.width), font_size, str, 0x00FFFFFF, rect);
         }
 
         // draw name
-        draw_string(rb, font, pos_to_screen(cur_pos, 0.05f, rb.height, rb.width), font_size, players_info[i].name);
+        draw_string(rb, font, pos_to_screen(cur_pos, 0.05f, rb.height, rb.width), font_size, players_info[i].name, 0x00FFFFFF, rect);
 
         // draw score
         _itoa_s(players_info[i].score, str, 100, 10);
-        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.16, cur_pos.y }, 0.05f, rb.height, rb.width), font_size, str);
+        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.16, cur_pos.y }, 0.05f, rb.height, rb.width), font_size, str, 0x00FFFFFF, rect);
         cur_pos.y -= 0.04;
     }
 }

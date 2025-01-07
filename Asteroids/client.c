@@ -1,7 +1,7 @@
 #include "client.h"
 #include <stdio.h>
 
-bool init_client(Client* client, char* port) {
+bool init_client(Client* client, const char* host, const char* port) {
 	client->id = -1;
 	struct addrinfo* result = NULL,
 		* ptr = NULL,
@@ -13,7 +13,7 @@ bool init_client(Client* client, char* port) {
 	hints.ai_protocol = IPPROTO_TCP;
 
 	// get socket
-	if (getaddrinfo("localhost", port, &hints, &result)) return false;
+	if (getaddrinfo(host, port, &hints, &result)) return false;
 	SOCKET* s = &client->socket.connection.sock;
 	*s = INVALID_SOCKET;
 

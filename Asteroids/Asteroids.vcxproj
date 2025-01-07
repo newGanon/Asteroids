@@ -138,6 +138,7 @@
     <ClCompile Include="client.c" />
     <ClCompile Include="entity.c" />
     <ClCompile Include="graphic.c" />
+    <ClCompile Include="gui.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="calc.c" />
     <ClCompile Include="network.c" />
@@ -148,6 +149,7 @@
     <ClInclude Include="entity.h" />
     <ClInclude Include="graphic.h" />
     <ClInclude Include="calc.h" />
+    <ClInclude Include="gui.h" />
     <ClInclude Include="message.h" />
     <ClInclude Include="network.h" />
     <ClInclude Include="player.h" />

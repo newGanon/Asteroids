@@ -1,4 +1,5 @@
 #include "util.h"
+#include "gui.h"
 #include "graphic.h"
 #include "entity.h"
 #include "client.h"
@@ -22,6 +23,8 @@ static const TCHAR error_string[] = _T("Call to RegisterClassEx failed!");
 typedef struct GameState_s {
     bool running;
     Client client;
+    char host[MAX_HOSTNAME_LENGTH + 1];
+    char port[MAX_PORT_LENGTH + 1];
     EntityManager entity_man;
     NetworkPlayerInfo players[MAX_CLIENTS];
 
@@ -31,6 +34,8 @@ typedef struct GameState_s {
     u64 last_time;
     f32 map_size;
 }GameState;
+
+static i32 gui_element_focused = -1;
 
 // Game specific variables
 static GameState state = { .running = true };
@@ -76,7 +81,7 @@ void tick_player(Client* c, EntityManager* man, f32 map_size) {
     u64 delta_time = time_since(state.last_time);
     if(delta_time >= TIMEPERUPDATE) {
         state.last_time += delta_time;
-        if (!c->player.dead) update_player(c, TIMEPERUPDATE, man, map_size);
+        if (!c->player.dead) update_player(&c->player, TIMEPERUPDATE, man, map_size);
         delta_time -= TIMEPERUPDATE;
     }
 }
@@ -106,7 +111,8 @@ void render_connecting_screen(BitMap rb, BitMap font, u64 dt) {
     if (connection_timer >= 2000) str[strnlen(str, 98)] = '.';
     if (connection_timer >= 3000) str[strnlen(str, 98)] = '.';
     vec2 font_size = { (rb.width / 1280.0f) * 5.0f, (rb.height / 720.0f) * 5.0f };
-    draw_string(rb, font, (ivec2) { rb.width/2.0f - font_size.x * (5 * 8), rb.height / 2.0f + font_size.y * 8/2}, (vec2) { font_size.x, font_size.y }, str);
+    irect screen_rect = { (ivec2) { 0, 0 }, (ivec2) { rb.width, rb.height } };
+    draw_string(rb, font, (ivec2) { rb.width/2.0f - font_size.x * (5 * 8), rb.height / 2.0f + font_size.y * 8/2}, (vec2) { font_size.x, font_size.y }, str, 0x00FFFFFF, screen_rect);
 
     InvalidateRect(global_window, NULL, FALSE);
 }
@@ -177,6 +183,7 @@ int init_window(_In_ HINSTANCE hInstance,
     init_render_buffer(hWnd);
 
     global_window = hWnd;
+    return 0;
 }
 
 
@@ -213,11 +220,18 @@ int load_resources(GameState* s) {
     return 0;
 }
 
-int connect_to_server() {
+int connect_to_server(const char* host, const char* port) {
     // Try to connect to the server and send player state
-    if (!init_client(&state.client, "27015")) return 1;
+    if (!init_client(&state.client, host, port)) return 1;
     u64 retry_connection_timer = 0;
     while (state.running && !check_connection_status(state.client.socket.connection.sock)) {
+        // get windows messages
+        MSG msg;
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        // handle connection
         u64 dt = time_since(state.last_time);
         state.last_time += dt;
         render_connecting_screen(state.render_buffer, state.font, dt);
@@ -226,19 +240,13 @@ int connect_to_server() {
         if (retry_connection_timer >= 1000) {
             retry_connection_timer = 0;
             closesocket(state.client.socket.connection.sock);
-            if (!init_client(&state.client, "27015")) return 1;
-        }
-
-        MSG msg;
-        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+            if (!init_client(&state.client, host, port)) return 1;
         }
     }
     return 0;
 }
 
-int init_game() {
+int init_game(char* name) {
     Player* p = &state.client.player;
     p->dead = true;
     p->acceleration = 0.5f;
@@ -246,27 +254,136 @@ int init_game() {
 
     state.map_size = 2.0f;
 
-    char name[16] = { "TomTomTomTomTom" };
+    //TODO make memory allocation for entities dynamic
+    state.entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
+
     send_client_connect(&state.client, name);
     //wait for player info from server
     while (state.client.player.p.size == 0.0f && state.client.player.dead) {
         if (!recieve_server_messages(&state.client, &state.entity_man, &state.players)) return 1;
     }
+    return 0;
+}
 
-    //TODO make memory allocation for entities dynamic
-    state.entity_man.entities = (Entity*)malloc(1000 * sizeof(Entity));
+char get_ascii_from_vk(char vk, bool shift_pressed) {
+
+    if ('0' <= vk && vk <= '9') return vk;
+    if ('A' <= vk && vk <= 'Z') {
+        if (shift_pressed) return vk;
+        else return vk + 32;
+    }
+    if (vk == VK_BACK) return 8;
+    return -1;
+}
+
+int main_menu(char* playername, char* host, char* port){
+    bool confirmed = false;
+    // mouse controls
+    bool left_mb_pressed = false;
+    ivec2 mouse_pos = { -1, -1 };
+    // gui elements
+    TextBox inputs[3];
+    char header_strings[3][50] = { "Player Name", "Host", "Port" };
+    char default_textbox_values[3][50] = { "Insert Name", "", "" };
+    char predefined_textbox_values[3][50] = { "", "localhost", "27015" };
+    for (size_t i = 0; i < 3; i++) {
+        inputs[i] = (TextBox){.id = i, .pos_rect = {.bl = (vec2) { 0.5f, 0.8f - (i * 0.2f)}, .tr = (vec2) {1.4f, 0.9f - (i * 0.2f)}}};
+        strcpy(inputs[i].header_string, header_strings[i]);
+        strcpy(inputs[i].input_text, predefined_textbox_values[i]);
+        inputs[i].input_text_len = strlen(predefined_textbox_values[i]);
+        strcpy(inputs[i].default_text, default_textbox_values[i]);
+    }
+    Button connect_button = { .id = 4, .default_text = "CONNECT", .pos_rect = {.bl = (vec2) { 0.5f, 0.1f }, .tr = (vec2) { 1.4f, 0.2f } } };
+    // TODO; make a queue for all keys pressed so no keys get lost
+    char key_pressed = -1;
+
+    while (!confirmed && state.running) {
+        key_pressed = -1;
+        MSG msg;
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            switch (msg.message) {
+            case WM_KEYDOWN: {
+                bool was_down = (msg.lParam >> 30) & 1;
+                bool is_down = ((msg.lParam >> 31) & 1) == 0;
+                // enter key
+                if (msg.wParam == VK_RETURN && !was_down && is_down) { confirmed = true; } 
+                // other key
+                else { 
+                    bool uppercase = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+                    bool caps = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
+                    key_pressed = get_ascii_from_vk(msg.wParam, uppercase != caps);
+                } 
+                break;
+            }
+            case WM_MOUSEMOVE: {
+                POINT p;
+                GetCursorPos(&p);
+                ScreenToClient(global_window, &p);
+                mouse_pos.x = p.x;
+                mouse_pos.y = state.render_buffer.height - p.y;
+                break;
+            }
+            case WM_LBUTTONDOWN: {
+                left_mb_pressed = true;
+                break;
+            }
+            case WM_LBUTTONUP: {
+                left_mb_pressed = false;
+                break;
+            }
+            default: {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+            }
+        }
+        // update gui elements
+        BitMap rb = state.render_buffer;
+        bool updated = false;
+        // button
+        updated |= button_update(rb, &connect_button, mouse_pos, left_mb_pressed, &gui_element_focused);
+        if (button_update(rb, &connect_button, mouse_pos, left_mb_pressed, &gui_element_focused)) {
+            confirmed = true;
+            updated = true;
+        }
+        // text boxes
+        for (size_t i = 0; i < 3; i++) { updated |= textbox_update(rb, &inputs[i], mouse_pos, left_mb_pressed, &gui_element_focused, key_pressed); }
+        // if user clicked on the screen but not on a gui element, unfocus
+        if (left_mb_pressed && !updated) gui_element_focused = -1;
+
+        if (confirmed && inputs[0].input_text_len == 0) {
+            confirmed = false;
+        }
+
+        // render gui elements
+        clear_screen(rb);
+        for (size_t i = 0; i < 3; i++) {
+            textbox_render(rb, state.font, inputs[i], left_mb_pressed, gui_element_focused);
+        }
+        button_render(rb, state.font, connect_button, left_mb_pressed, gui_element_focused);
+
+        InvalidateRect(global_window, NULL, FALSE);
+    }
+
+    memcpy(playername, inputs[0].input_text, inputs[0].input_text_len);
+    memcpy(host, inputs[1].input_text, inputs[1].input_text_len);
+    memcpy(port, inputs[2].input_text, inputs[2].input_text_len);
     return 0;
 }
 
 int client_online_main() {
-    // Establish connection to the server, if connect_to_server returns 1, an error has occured or window has been closd
-    if (state.running && connect_to_server()) return 1;
+    //draw the main menu where the client is asked for host, port and playername, if 1 is returned an error has occured
+    if (state.running && main_menu(state.client.player.name, state.host, state.port)) return 1;
 
-    // intialize all game varaibles and wait for initial information from server, if init_game returns 1, an error has occured or window has been closd
-    if (state.running && init_game()) return 1;
+    // Establish connection to the server, if connect_to_server returns 1, an error has occured
+    if (state.running && connect_to_server(state.host, state.port)) return 1;
 
-    //reset timing for game loop
+    // intialize all game varaibles and wait for initial information from server, if init_game returns 1, an error has occured
+    //char name[16] = { "TomTomTomTomTom" };
+    if (state.running && init_game(state.client.player.name)) return 1;
+
     Player* p = &state.client.player;
+    //reset timing for game loop
     state.last_time = get_milliseconds();
     // Main message loop
     while (state.running) {
@@ -361,6 +478,7 @@ int WINAPI wWinMain(
     else {
         while (ret != 0) {
             ret = client_online_main();
+            memset(&state.players, 0, sizeof(NetworkPlayerInfo) * MAX_CLIENTS);
         }
     }
     // error occured close the window and handle the error

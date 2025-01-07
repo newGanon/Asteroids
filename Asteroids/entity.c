@@ -145,12 +145,13 @@ void update_entities(EntityManager* manager, EntityManager* queue, u32 delta_tim
 			}
 		}
 		e->pos = vec2_add(e->pos, (vec2) { e->vel.x* dt, e->vel.y* dt });
+		e->ang += 1.0f * dt;
 		e->dirty = true;
 		f32 around = 0;
 		vec2 border_bl = (vec2){ -(map_size + around), -(map_size + around) };
 		vec2 border_tl = (vec2){ map_size + around, map_size + around };
-		vec2 entity_bl = (vec2){ e->pos.x - e->size, e->pos.y - e->size };
-		vec2 entity_tl = (vec2){ e->pos.x + e->size, e->pos.y + e->size };
+		//vec2 entity_bl = (vec2){ e->pos.x - e->size, e->pos.y - e->size };
+		//vec2 entity_tl = (vec2){ e->pos.x + e->size, e->pos.y + e->size };
 
 		//if (!rect_inside_rect(entity_bl, entity_tl, border_bl, border_tl) || point_outside_rect(e->pos, border_bl, border_tl)) {
 		//	e->dirty = true;
@@ -276,6 +277,7 @@ void spawn_asteroid(EntityManager* manager, f32 map_size) {
 	vec2 pos = { 0 };
 	f32 speed = 0.1f;
 	vec2 vel = vec2_from_ang(random_between(0 , 6283) / 1000.0f, speed);;
+	//f32 size = random_between(80, 130) / 1000.0f;
 	f32 size = random_between(80, 130) / 1000.0f;
 	// try spawning a asteroid 100 times before giving up
 	bool found = false;

@@ -51,6 +51,10 @@ vec2 screen_to_pos_relative(ivec2 point, f32 p_size, ivec2 relative_to, f32 angl
     return screen_to_pos(ivec2_add(point, relative_to), p_size, screen_height, screen_width);
 }
 
+bool point_inside_irect(ivec2 p, irect rect) {
+    return (p.x >= rect.bl.x && p.x <= rect.tr.x && p.y >= rect.bl.y && p.y <= rect.tr.y);
+}
+
 bool point_outside_rect(vec2 p, vec2 r0, vec2 r1) {
     if (r0.x > r1.x) {
         f32 tmp = r0.x;

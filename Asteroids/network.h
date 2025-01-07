@@ -6,6 +6,7 @@
 #include "util.h"
 #include "message.h"
 
+
 typedef enum message_status_e {
 	MESSAGE_ERROR = -1,
 	MESSAGE_EMPTY = 0,

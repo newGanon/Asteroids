@@ -22,7 +22,7 @@ ServerState state;
 
 void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg);
 void handle_message_error(ServerSocket* s, EntityManager* man, i32 id);
-void welcome_client(ServerSocket* s, EntityManager* man, u32 id);
+void welcome_client(ServerSocket* s, EntityManager* man, u32 id, Entity player);
  
 bool init_network() {
 	WSADATA wsaData;
@@ -68,7 +68,7 @@ bool init_server() {
 	return false;
 }
 
-i32 seach_empty_slot(ServerSocket* s) {
+i32 search_empty_slot(ServerSocket* s) {
 	for (size_t i = 0; i < MAX_CLIENTS; i++) {
 		if (s->connections[i].sock == 0) {
 			return i;
@@ -87,7 +87,7 @@ bool accept_connection(ServerState* serv) {
 		s = INVALID_SOCKET;
 		return false;
 	}
-	i32 empty_slot = seach_empty_slot(serv);
+	i32 empty_slot = search_empty_slot(serv);
 	serv->sockets.connections[empty_slot].sock = s;
 	serv->sockets.con_amt++;
 	serv->sockets.player_status[empty_slot].connected = true;

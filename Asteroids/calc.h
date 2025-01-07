@@ -19,6 +19,7 @@ vec2 screen_to_pos(ivec2 p, f32 size, i32 screen_height, i32 screen_width);
 vec2 vec2_rotate(vec2 v, f32 ang);
 
 bool point_outside_rect(vec2 p, vec2 v0, vec2 v1);
+bool point_inside_irect(ivec2 p, irect rect);
 bool rect_overlap_rect(vec2 r0, vec2 r1, vec2 r2, vec2 r3);
 bool rect_inside_rect(vec2 r0, vec2 r1, vec2 r2, vec2 r3);
 
