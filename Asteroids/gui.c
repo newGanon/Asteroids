@@ -52,7 +52,8 @@ void button_render(BitMap rb, BitMap font, Button b, bool mouse_clicked, i32 cur
 	draw_string(rb, font, pos, font_size, b.default_text, 0x00FFFFFF, button_rect);
 }
 
-void textbox_render(BitMap rb, BitMap font,TextBox t, bool mouse_clicked, i32 current_focus) {
+static u64 cursor_blinking_timer = 0;
+void textbox_render(BitMap rb, BitMap font,TextBox t, bool mouse_clicked, i32 current_focus, u64 dt) {
 	irect textbox_rect = { .bl = pos_to_screen(t.pos_rect.bl, 0.05f, rb.height, rb.width),
 						  .tr = pos_to_screen(t.pos_rect.tr, 0.05f, rb.height, rb.width) };
 	if (current_focus == t.id) draw_rect(rb, textbox_rect, 0x0000FFFF);
@@ -60,30 +61,28 @@ void textbox_render(BitMap rb, BitMap font,TextBox t, bool mouse_clicked, i32 cu
 
 	// if empty then draw default text
 	if (t.input_text_len == 0 && current_focus != t.id) {
-		//i32 text_length = strlen(t.default_text);
-		//vec2 character_size = { (f32)(textbox_rect.tr.x - textbox_rect.bl.x) / text_length, (f32)(textbox_rect.tr.y - textbox_rect.bl.y) };
-		//vec2 font_size = { (character_size.x / 8.0f), (character_size.y / 8.0f) };
 		vec2 font_size = { (rb.width / 1280.0f) * 4.0f, (rb.height / 720.0f) * 4.0f };
-		ivec2 pos = { textbox_rect.bl.x + font_size.x * 0.5f * 8, textbox_rect.bl.y + font_size.x * 0.5f * 8 };
+		ivec2 pos = { textbox_rect.bl.x + font_size.x * 0.5f * 8, textbox_rect.bl.y + font_size.y * 0.5f * 8 };
 		draw_string(rb, font, pos, font_size, t.default_text, 0x00BDBDBD, textbox_rect);
 	}
 	// draw already written text
 	else {
-		//i32 text_length = strlen(t.input_text);
-		//vec2 character_size = { (f32)(textbox_rect.tr.x - textbox_rect.bl.x) / text_length, (f32)(textbox_rect.tr.y - textbox_rect.bl.y) };
-		//vec2 font_size = { (character_size.x / 8.0f), (character_size.y / 8.0f) };
 		vec2 font_size = { (rb.width / 1280.0f) * 4.0f, (rb.height / 720.0f) * 4.0f };
-		ivec2 pos = { textbox_rect.bl.x + font_size.x * 0.5f * 8, textbox_rect.bl.y + font_size.x * 0.5f * 8 };
+		ivec2 pos = { textbox_rect.bl.x + font_size.x * 0.5f * 8, textbox_rect.bl.y + font_size.y * 0.5f * 8 };
 		draw_string(rb, font, pos, font_size, t.input_text, 0x00FFFFFF, textbox_rect);
 		if (current_focus == t.id) {
-			ivec2 cursor_pos = { pos.x + (t.cursor_pos - 0.2f) * font_size.x * 8, (pos.y)};
-			vec2 cursor_size = { font_size.x * 0.8f, font_size.y * 1.5f };
-			// HACK!!! because pipe symbol doesnt have its own 8 pixel square
-			textbox_rect.tr.x = MIN(textbox_rect.tr.x, cursor_pos.x + font_size.x * 4);
-			draw_character(rb, font, cursor_pos, cursor_size, 's' + 64, 0x005E5E5E, textbox_rect);
+			// cursor should be visible for CURSOR_BLINKING_TIME time and then invisible for CURSOR_BLINKING_TIME time and then reset
+			cursor_blinking_timer += dt;
+			while (cursor_blinking_timer > 2 * CURSOR_BLINKING_TIME) cursor_blinking_timer -= 2 * CURSOR_BLINKING_TIME;
+			if (cursor_blinking_timer < CURSOR_BLINKING_TIME) {
+				ivec2 cursor_pos = { pos.x + (t.cursor_pos - 0.2f) * font_size.x * 8, (pos.y) };
+				vec2 cursor_size = { font_size.x * 0.8f, font_size.y * 1.4f };
+				// HACK!!! because pipe symbol doesnt have its own 8 pixel square
+				textbox_rect.tr.x = MIN(textbox_rect.tr.x, cursor_pos.x + font_size.x * 4);
+				draw_character(rb, font, cursor_pos, cursor_size, 's' + 64, 0x005E5E5E, textbox_rect);
+			}
 		} 
 	}
-
 
 	// draw header text of textbox 
 	irect screen_rect = { (ivec2) { 0, 0 }, (ivec2) { rb.width, rb.height } };

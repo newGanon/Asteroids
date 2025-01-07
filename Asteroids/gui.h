@@ -2,6 +2,8 @@
 #include "calc.h"
 #include "graphic.h"
 
+#define CURSOR_BLINKING_TIME 600
+
 typedef struct TextBox_s {
 	u32 id;
 	rect pos_rect;
@@ -23,4 +25,4 @@ typedef struct Button_s {
 bool button_update(BitMap rb, Button* b, ivec2 mouse_pos, bool lmb_down, bool lmb_was_down, i32* current_focus);
 bool textbox_update(BitMap rb, TextBox* t, ivec2 mouse_pos, bool lmb_down, i32* current_focus, char key_pressed);
 void button_render(BitMap rb, BitMap font, Button b, bool lmb_down, i32 current_focus);
-void textbox_render(BitMap rb, BitMap font, TextBox b, bool lmb_down, i32 current_focus);
+void textbox_render(BitMap rb, BitMap font, TextBox b, bool lmb_down, i32 current_focus, u64 dt);

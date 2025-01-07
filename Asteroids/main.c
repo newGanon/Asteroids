@@ -79,7 +79,7 @@ void init_render_buffer(HWND hWnd) {
 void tick_player(Client* c, EntityManager* man, f32 map_size) {
 
     u64 delta_time = time_since(state.last_time);
-    if(delta_time >= TIMEPERUPDATE) {
+    if (delta_time >= TIMEPERUPDATE) {
         state.last_time += delta_time;
         if (!c->player.dead) update_player(&c->player, TIMEPERUPDATE, man, map_size);
         delta_time -= TIMEPERUPDATE;
@@ -104,9 +104,7 @@ void render_connecting_screen(BitMap rb, BitMap font, u64 dt) {
     memset(str, 0, 100);
     strcpy(str, "CONNECTING");
     connection_timer += dt;
-    if (connection_timer >= 4000) {
-        connection_timer -= 4000;
-    }
+    if (connection_timer >= 4000) connection_timer -= 4000;
     if (connection_timer >= 1000) str[strnlen(str, 98)] = '.';
     if (connection_timer >= 2000) str[strnlen(str, 98)] = '.';
     if (connection_timer >= 3000) str[strnlen(str, 98)] = '.';
@@ -339,34 +337,33 @@ int main_menu(char* playername, char* host, char* port){
             }
             }
         }
+        // time for animating cursor
+        u64 dt = time_since(state.last_time);
+        state.last_time += dt;
         // update gui elements
         BitMap rb = state.render_buffer;
         bool updated = false;
         // if the user let go of the left mouse button over the connect button, then start connecting the player
-        if (confirmed && lmb_was_down && !lmb_down)
-            break;
+        if (confirmed && lmb_was_down && !lmb_down) break;
         // button
         if (button_update(rb, &connect_button, mouse_pos, lmb_down, lmb_was_down, &gui_element_focused)) {
             confirmed = true;
             updated |= true;
         }
-        // text boxes
+        // update text boxes
         for (size_t i = 0; i < 3; i++) { updated |= textbox_update(rb, &inputs[i], mouse_pos, lmb_down, &gui_element_focused, key_pressed); }
+
         // if user clicked on the screen but not on a gui element, unfocus
         if (lmb_down && !updated) gui_element_focused = -1;
-
-        if (confirmed && inputs[0].input_text_len == 0) {
-            confirmed = false;
-        }
-
+        //  check if name has a value
+        if (confirmed && inputs[0].input_text_len == 0) confirmed = false;
+        // save last state of the left mouse button, so buttons can be activated when youi let go of your mouse
         lmb_was_down = lmb_down;
+
         // render gui elements
         clear_screen(rb);
-        for (size_t i = 0; i < 3; i++) {
-            textbox_render(rb, state.font, inputs[i], lmb_down, gui_element_focused);
-        }
+        for (size_t i = 0; i < 3; i++) textbox_render(rb, state.font, inputs[i], lmb_down, gui_element_focused, dt);
         button_render(rb, state.font, connect_button, lmb_down, gui_element_focused);
-
         InvalidateRect(global_window, NULL, FALSE);
     }
 
@@ -377,6 +374,8 @@ int main_menu(char* playername, char* host, char* port){
 }
 
 int client_online_main() {
+    //init time
+    state.last_time = get_milliseconds();
     //draw the main menu where the client is asked for host, port and playername, if 1 is returned an error has occured
     if (state.running && main_menu(state.client.player.name, state.host, state.port)) return 1;
 
@@ -388,8 +387,6 @@ int client_online_main() {
     if (state.running && init_game(state.client.player.name)) return 1;
 
     Player* p = &state.client.player;
-    //reset timing for game loop
-    state.last_time = get_milliseconds();
     // Main message loop
     while (state.running) {
         MSG msg;
