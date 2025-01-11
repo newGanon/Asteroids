@@ -2,14 +2,14 @@
 #include "calc.h"
 #include "graphic.h"
 
-#define CURSOR_BLINKING_TIME 600
+#define CURSOR_BLINKING_TIME 500
 
 typedef struct TextBox_s {
 	u32 id;
 	rect pos_rect;
 	bool focused;
 	char default_text[50];
-	char input_text[MAX_NAME_LENGTH];
+	char input_text[MAX_NAME_LENGTH + 1];
 	size_t input_text_len;
 	i32 cursor_pos;
 	i32 header_string[50];

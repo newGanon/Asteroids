@@ -377,7 +377,7 @@ void draw_minimap(BitMap rb, EntityManager manager, Player player, f32 map_size)
     draw_mesh_in_rect(rb, 0.05f, player.p.mesh, p0, player.p.ang, minimap_scale * 1.5f * player.p.size, 0x009C0909, rel_screen_rect);
 }
 
-void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
+void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info, u32 client_id) {
     vec2 loeaderboard_size = {0.25f, 0.5f};
     vec2 offset = {1.47, 0.95};
     ivec2 bl = pos_to_screen((vec2) { offset.x, offset.y - loeaderboard_size.y }, 0.05f, rb.height, rb.width);
@@ -405,18 +405,22 @@ void draw_scoreboard(BitMap rb, BitMap font, NetworkPlayerInfo* players_info) {
     char str[100];
     for (size_t i = 0; i < MAX_CLIENTS; i++) {
         if (!players_info[i].connected) continue;
+        u32 color = 0x00FFFFFF;
+        // draw client name and color in a different color
+        if (i == client_id) color = 0x00FFFF00;
+
         if (players_info[i].dead) {
             //draw death timer
             _itoa_s(players_info[i].dead_timer, str, 100, 10);
-            draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x, cur_pos.y + 0.02f }, 0.05f, rb.height, rb.width), font_size, str, 0x00FFFFFF, rect);
+            draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x, cur_pos.y + 0.02f }, 0.05f, rb.height, rb.width), font_size, str, color, rect);
         }
 
         // draw name
-        draw_string(rb, font, pos_to_screen(cur_pos, 0.05f, rb.height, rb.width), font_size, players_info[i].name, 0x00FFFFFF, rect);
+        draw_string(rb, font, pos_to_screen(cur_pos, 0.05f, rb.height, rb.width), font_size, players_info[i].name, color, rect);
 
         // draw score
         _itoa_s(players_info[i].score, str, 100, 10);
-        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.16, cur_pos.y }, 0.05f, rb.height, rb.width), font_size, str, 0x00FFFFFF, rect);
+        draw_string(rb, font, pos_to_screen((vec2) { cur_pos.x + 0.16, cur_pos.y }, 0.05f, rb.height, rb.width), font_size, str, color, rect);
         cur_pos.y -= 0.04;
     }
 }

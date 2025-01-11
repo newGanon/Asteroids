@@ -92,7 +92,7 @@ void render(BitMap rb, BitMap font, Player* p, EntityManager* man, f32 map_size,
     if (!p->dead) { draw_player(rb, *p, map_size); }
     draw_entities(rb, font, *man, *p, p_info, map_size);
     draw_minimap(rb, *man, *p, map_size);
-    draw_scoreboard(rb, font, p_info);
+    draw_scoreboard(rb, font, p_info, state.client.id);
 
     InvalidateRect(global_window, NULL, FALSE);
 }
@@ -265,11 +265,13 @@ int init_game(char* name) {
 char get_ascii_from_vk(char vk, bool shift_pressed) {
 
     if ('0' <= vk && vk <= '9') return vk;
-    if ('A' <= vk && vk <= 'Z') {
+    else if ('A' <= vk && vk <= 'Z') {
         if (shift_pressed) return vk;
         else return vk + 32;
     }
-    if (vk == VK_BACK) return 8;
+    else if (vk == VK_BACK) return vk;
+    else if (vk == VK_LEFT || vk == VK_RIGHT) return vk;
+
     return -1;
 }
 
@@ -337,14 +339,15 @@ int main_menu(char* playername, char* host, char* port){
             }
             }
         }
+        // if the user let go of the left mouse button over the connect button, then start connecting the player
+        if (confirmed && lmb_was_down && !lmb_down) break;
+
         // time for animating cursor
         u64 dt = time_since(state.last_time);
         state.last_time += dt;
         // update gui elements
         BitMap rb = state.render_buffer;
         bool updated = false;
-        // if the user let go of the left mouse button over the connect button, then start connecting the player
-        if (confirmed && lmb_was_down && !lmb_down) break;
         // button
         if (button_update(rb, &connect_button, mouse_pos, lmb_down, lmb_was_down, &gui_element_focused)) {
             confirmed = true;
