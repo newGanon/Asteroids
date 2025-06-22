@@ -370,9 +370,9 @@ int main_menu(char* playername, char* host, char* port){
         InvalidateRect(global_window, NULL, FALSE);
     }
 
-    strcpy(playername, inputs[0].input_text, inputs[0].input_text_len);
-    strcpy(host, inputs[1].input_text, inputs[1].input_text_len);
-    strcpy(port, inputs[2].input_text, inputs[2].input_text_len);
+    strncpy(playername, inputs[0].input_text, inputs[0].input_text_len);
+    strncpy(host, inputs[1].input_text, inputs[1].input_text_len);
+    strncpy(port, inputs[2].input_text, inputs[2].input_text_len);
     return 0;
 }
 

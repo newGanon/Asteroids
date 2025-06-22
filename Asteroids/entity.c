@@ -307,7 +307,7 @@ void modify_entity(Entity e, EntityManager* man) {
 			remove_entity(man, idx);
 		}
 		else {
-			// HACK!!! TODO: SAFE MESH SOMEWHERE ELSE 
+			//TODO: SAFE MESH SOMEWHERE ELSE 
 			e.mesh = man->entities[idx].mesh;
 			overwrite_entity_idx(man, e, idx);
 		}

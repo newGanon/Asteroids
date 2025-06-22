@@ -25,7 +25,7 @@ typedef size_t size;
 #define PI_4 PI/4
 
 #define MAX_NAME_LENGTH 16
-#define MAX_CLIENTS 2
+#define MAX_CLIENTS 16
 #define MAX_BUFFERED_MESSAGE 1000
 
 #define MAX_HOSTNAME_LENGTH 255

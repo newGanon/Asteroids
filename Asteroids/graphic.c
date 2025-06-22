@@ -12,7 +12,6 @@ void fill_screen(BitMap rb, u32 color) {
     }
 }
 
-// TODO make the line algorithm more efficient by checking of line is outside of screen and only draw the part that lies in screen
 void draw_line(BitMap rb, ivec2 v0, ivec2 v1, u32 color) {
     vec2 bl;
     vec2 tr;

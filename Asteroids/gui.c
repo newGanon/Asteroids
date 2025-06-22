@@ -10,7 +10,6 @@ bool button_update(BitMap rb, Button* b, ivec2 mouse_pos, bool lmb_down, bool lm
 	return false;
 }
 
-//TODO: ability to click into the text in the texbox and move cursor
 bool textbox_update(BitMap rb, TextBox* t, ivec2 mouse_pos, bool lmb_down, i32* current_focus, char key_pressed) {
 	irect screen_rect = { .bl = pos_to_screen(t->pos_rect.bl, 0.05f, rb.height, rb.width),
 					      .tr = pos_to_screen(t->pos_rect.tr, 0.05f, rb.height, rb.width) };

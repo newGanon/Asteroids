@@ -17,7 +17,7 @@ typedef struct ServerState_s {
 	f32 map_size;
 } ServerState;
 
-ServerState state;
+ServerState state = {0};
 
 
 void broadcast_message(ServerSocket* s, EntityManager* man, Message* msg);
@@ -365,7 +365,7 @@ void update_tickers(ServerState* s, u64 delta_time) {
 
 
 i32 server_main() {
-	state = (ServerState){ 0 };
+	// state = (ServerState){ 0 };
 	// TODO: make entity_manager dynamic
 	state.entity_manager.entities = (Entity*)malloc(1000 * sizeof(Entity));
 	state.entity_queue.entities = (Entity*)malloc(1000 * sizeof(Entity));
